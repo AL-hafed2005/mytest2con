@@ -44,9 +44,9 @@
             transform: translateX(0);
         }
         .status-modification-approved { 
-    background-color: #dbeafe; 
-    color: #1e40af; 
-}
+            background-color: #dbeafe; 
+            color: #1e40af; 
+        }
         .overlay {
             position: fixed;
             inset: 0;
@@ -232,6 +232,25 @@
             .product-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; }
             .chart-container { height: 180px; }
         }
+
+        /* ✅ إضافة دعم لأبعاد 60px */
+        .w-15 { width: 60px; }
+        .h-15 { height: 60px; }
+
+        /* تحسين عرض حالة الطلب داخل البطاقة */
+        #orders-list .order-status {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* ضمان أن الصورة لا تمتد خارج الحدود */
+        #orders-list img {
+            min-width: 60px;
+            min-height: 60px;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -376,26 +395,11 @@
                     <div class="product-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="products-grid"></div>
                 </div>
             </div>
-            <!-- إدارة الطلبات -->
+            <!-- ✅ إدارة الطلبات (محدثة) -->
             <div id="orders-section" class="space-y-4 md:space-y-6 hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800">إدارة الطلبات</h2>
-                <div class="bg-white p-4 md:p-6 rounded-xl shadow">
-                    <div class="table-responsive">
-                        <table class="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">المنتج</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">الطلب</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">العميل</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">المبلغ</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">التاريخ</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="orders-table"></tbody>
-                        </table>
-                    </div>
+                <div class="bg-white rounded-xl shadow overflow-hidden">
+                    <div id="orders-list" class="divide-y divide-gray-100"></div>
                 </div>
             </div>
             <!-- تحليل المبيعات -->
@@ -520,55 +524,44 @@
                 </div>
             </div>
         </div>
-
-        <!-- ✅ نافذة تعديل الطلب الجديدة -->
-       <!-- نافذة تعديل الطلب (محدثة مع إمكانية الحذف) -->
-<!-- نافذة تعديل الطلب (بإضافة/حذف منتجات) -->
-<div id="editOrderModal" class="fixed inset-0 overflow-y-auto z-50 hidden">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeEditOrderModal()"></div>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                    <div class="mt-3 text-center sm:mt-0 sm:mr-4 sm:text-right w-full">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-base md:text-lg leading-6 font-medium text-gray-900">تعديل الطلب #<span id="edit-order-number"></span></h3>
-                            <button onclick="closeEditOrderModal()" class="text-gray-400 hover:text-gray-500">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-
-                        <!-- عرض المنتجات الحالية -->
-                        <div id="edit-order-items" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
-
-                        <!-- زر إضافة منتج -->
-                        <button onclick="showProductSelector()" class="w-full py-1.5 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 mb-4">
-                            + إضافة منتج من المتجر
-                        </button>
-
-                        <!-- قائمة اختيار المنتجات (مخفية افتراضيًا) -->
-                        <div id="product-selector" class="hidden mb-4">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">اختر منتجًا:</label>
-                            <select id="new-product-select" class="w-full p-2 border rounded text-sm"></select>
-                            <div class="flex gap-2 mt-2">
-                                <input type="number" id="new-product-qty" min="1" value="1" class="w-20 p-1 border rounded text-center text-xs" placeholder="الكمية">
-                                <button onclick="addProductToOrder()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs">إضافة</button>
-                                <button onclick="hideProductSelector()" class="px-3 py-1 bg-gray-300 rounded text-xs">إلغاء</button>
+        <!-- نافذة تعديل الطلب -->
+        <div id="editOrderModal" class="fixed inset-0 overflow-y-auto z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeEditOrderModal()"></div>
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:mr-4 sm:text-right w-full">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-base md:text-lg leading-6 font-medium text-gray-900">تعديل الطلب #<span id="edit-order-number"></span></h3>
+                                    <button onclick="closeEditOrderModal()" class="text-gray-400 hover:text-gray-500">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div id="edit-order-items" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+                                <button onclick="showProductSelector()" class="w-full py-1.5 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 mb-4">
+                                    + إضافة منتج من المتجر
+                                </button>
+                                <div id="product-selector" class="hidden mb-4">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">اختر منتجًا:</label>
+                                    <select id="new-product-select" class="w-full p-2 border rounded text-sm"></select>
+                                    <div class="flex gap-2 mt-2">
+                                        <input type="number" id="new-product-qty" min="1" value="1" class="w-20 p-1 border rounded text-center text-xs" placeholder="الكمية">
+                                        <button onclick="addProductToOrder()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs">إضافة</button>
+                                        <button onclick="hideProductSelector()" class="px-3 py-1 bg-gray-300 rounded text-xs">إلغاء</button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button onclick="saveOrderChanges()" class="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs md:text-sm">
+                                        حفظ التعديلات
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="flex justify-end gap-2">
-                            <button onclick="saveOrderChanges()" class="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs md:text-sm">
-                                حفظ التعديلات
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
     </div>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -638,7 +631,6 @@
             }
             return true;
         }
-        // === المواصفات الديناميكية ===
         function addSpecRow(key = '', value = '') {
             const container = document.getElementById('specs-container');
             const div = document.createElement('div');
@@ -669,7 +661,6 @@
                     return;
                 }
             }
-            // جمع المواصفات
             const specRows = document.querySelectorAll('#specs-container .spec-row');
             const specifications = {};
             specRows.forEach(row => {
@@ -714,8 +705,7 @@
         let currentOrder = null;
         let autoRefreshInterval = null;
         let salesChart = null;
-        let editingOrder = null; // ✅ متغير جديد للطلب الجاري تعديله
-
+        let editingOrder = null;
         function formatDateTime12Hour(timestamp) {
             if (!timestamp) return '---';
             const date = timestamp.toDate();
@@ -858,7 +848,6 @@
                 const card = document.createElement('div');
                 card.className = 'product-card bg-white p-3 rounded-lg shadow text-center';
                 const imgSrc = p.image || 'https://placehold.co/150x150';
-                // عرض المواصفات والكمية
                 const specsHtml = p.specifications ? Object.entries(p.specifications).map(([k, v]) => `${k}: ${v}`).join(' | ') : '';
                 const quantityText = p.quantity !== undefined ? `الكمية: ${p.quantity}` : '';
                 card.innerHTML = `
@@ -907,7 +896,6 @@
             } else {
                 document.getElementById('image-preview').classList.add('hidden');
             }
-            // تحميل المواصفات
             const specsContainer = document.getElementById('specs-container');
             specsContainer.innerHTML = '';
             if (p.specifications) {
@@ -918,48 +906,64 @@
             document.getElementById('productModal').classList.remove('hidden');
         }
 
-        // ✅ دالة renderOrders المعدلة
+        // ✅ دالة renderOrders المحدثة (واجهة متجاوبة)
         async function renderOrders() {
-            const tbody = document.getElementById('orders-table');
+            const container = document.getElementById('orders-list');
             const snap = await db.collection('orders').orderBy('date', 'desc').get();
-            tbody.innerHTML = '';
+            container.innerHTML = '';
+
+            if (snap.empty) {
+                container.innerHTML = `<div class="p-6 text-center text-gray-500">لا توجد طلبات حتى الآن.</div>`;
+                return;
+            }
+
             snap.forEach(doc => {
                 const o = doc.data();
-                const firstItem = o.items && o.items.length > 0 ? o.items[0] : null;
-                const productImage = firstItem?.image || 'https://placehold.co/40x40?text=صورة';
-                
-                // التحقق مما إذا كان العميل وافق على التعديل
-                const canEdit = o.status === 'modification-approved';
+                const firstItem = o.items?.[0] || null;
+                const productImage = firstItem?.image || 'https://placehold.co/60x60?text=صورة';
+                const statusText = getStatusText(o.status);
+                const statusClass = `status-${o.status || 'processing'}`;
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap">
-                        <img src="${productImage}" alt="صورة المنتج" class="w-6 h-6 md:w-8 md:h-8 object-cover rounded" onerror="this.src='https://placehold.co/40x40?text=لا+صورة'">
-                    </td>
-                    <td class="text-xs md:text-sm">#${doc.id}</td>
-                    <td class="text-xs md:text-sm">${o.customerName || '---'}</td>
-                    <td class="text-xs md:text-sm">${(o.total || 0).toFixed(2)} ع.د</td>
-                    <td class="text-xs md:text-sm"><span class="order-status status-${o.status || 'processing'}">${getStatusText(o.status)}</span></td>
-                    <td class="text-xs md:text-sm">${formatDateTime12Hour(o.date) || '---'}</td>
-                    <td class="text-xs md:text-sm">
-                        <button onclick="viewOrderDetails('${doc.id}')" class="text-blue-600 mx-1"><i class="fas fa-eye"></i></button>
-                        ${canEdit ? `<button onclick="openEditOrderModal('${doc.id}')" class="text-green-600 mx-1"><i class="fas fa-pencil-alt"></i></button>` : ''}
-                    </td>
+                const orderEl = document.createElement('div');
+                orderEl.className = 'p-4 cursor-pointer hover:bg-gray-50 transition-colors';
+                orderEl.onclick = () => viewOrderDetails(doc.id);
+
+                orderEl.innerHTML = `
+                    <div class="flex items-start gap-4">
+                        <!-- الصورة على اليمين -->
+                        <div class="flex-shrink-0">
+                            <img src="${productImage}" 
+                                 alt="صورة المنتج"
+                                 class="w-15 h-15 rounded-lg object-cover border border-gray-200"
+                                 onerror="this.src='https://placehold.co/60x60?text=لا+صورة'">
+                        </div>
+                        <!-- التفاصيل -->
+                        <div class="flex-1 min-w-0 text-right">
+                            <div class="flex justify-between items-start">
+                                <span class="font-bold text-gray-900 text-sm">#${doc.id}</span>
+                                <span class="order-status ${statusClass} text-xs px-2 py-1">${statusText}</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${formatDateTime12Hour(o.date) || '---'}</p>
+                            <p class="font-semibold text-gray-800 mt-1 text-sm">${(o.total || 0).toLocaleString('ar-SA')} ع.د</p>
+                            <p class="text-xs text-blue-600 mt-1">اضغط لعرض التفاصيل</p>
+                        </div>
+                    </div>
                 `;
-                tbody.appendChild(row);
+                container.appendChild(orderEl);
             });
         }
 
-function getStatusText(status) {
-    return ({
-        'processing': 'قيد المعالجة',
-        'modification-requested': 'طلب تعديل',
-        'modification-approved': 'مسموح بالتعديل', // ✅
-        'shipped': 'تم الشحن',
-        'delivered': 'تم التسليم',
-        'cancelled': 'ملغى'
-    })[status] || status;
-}
+        function getStatusText(status) {
+            return ({
+                'processing': 'قيد المعالجة',
+                'modification-requested': 'طلب تعديل',
+                'modification-approved': 'مسموح بالتعديل',
+                'shipped': 'تم الشحن',
+                'delivered': 'تم التسليم',
+                'cancelled': 'ملغى'
+            })[status] || status;
+        }
+
         async function viewOrderDetails(orderId) {
             const doc = await db.collection('orders').doc(orderId).get();
             if (!doc.exists) return;
@@ -1004,104 +1008,93 @@ function getStatusText(status) {
             alert("تم إرسال طلب التعديل إلى العميل.");
             renderOrders();
         }
-
-        // ✅ الدوال الجديدة لتعديل الطلب بعد الموافقة
-     function openEditOrderModal(orderId) {
-    if (!checkPermission()) return;
-    db.collection('orders').doc(orderId).get().then(doc => {
-        if (!doc.exists) return;
-        editingOrder = { id: doc.id, ...doc.data() };
-        document.getElementById('edit-order-number').textContent = doc.id;
-        renderEditOrderItems(); // ✅
-        document.getElementById('editOrderModal').classList.remove('hidden');
-    });
-}
-
-function removeItemFromEdit(index) {
-    if (!editingOrder || !editingOrder.items || index < 0 || index >= editingOrder.items.length) return;
-    
-    // إزالة العنصر من القائمة
-    editingOrder.items.splice(index, 1);
-    
-    // تحديث العرض فقط (بدون إعادة فتح النافذة)
-    const container = document.getElementById('edit-order-items');
-    container.innerHTML = '';
-    editingOrder.items.forEach((item, i) => {
-        const maxQty = item.maxAvailableQty !== undefined ? item.maxAvailableQty : (item.quantity || Infinity);
-        const imgSrc = item.image || 'https://placehold.co/30x30?text=صورة';
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded gap-2';
-        div.innerHTML = `
-            <div class="flex items-center gap-2 flex-1 min-w-0">
-                <img src="${imgSrc}" class="w-6 h-6 object-cover rounded" onerror="this.src='https://placehold.co/30x30?text=لا+صورة'">
-                <span class="text-sm font-medium truncate">${item.name}</span>
-            </div>
-            <div class="flex items-center space-x-1 space-x-reverse">
-                <input type="number" min="1" max="${maxQty}" value="${item.quantity}" 
-                       class="order-qty w-12 p-1 border rounded text-center text-xs" 
-                       data-index="${i}" data-max="${maxQty}">
-                <input type="number" step="0.01" min="0" value="${item.price}" 
-                       class="order-price w-16 p-1 border rounded text-center text-xs" 
-                       data-index="${i}">
-                <button type="button" onclick="removeItemFromEdit(${i})" 
-                        class="text-red-600 hover:text-red-800 p-1 rounded">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
+        function openEditOrderModal(orderId) {
+            if (!checkPermission()) return;
+            db.collection('orders').doc(orderId).get().then(doc => {
+                if (!doc.exists) return;
+                editingOrder = { id: doc.id, ...doc.data() };
+                document.getElementById('edit-order-number').textContent = doc.id;
+                renderEditOrderItems();
+                document.getElementById('editOrderModal').classList.remove('hidden');
+            });
+        }
+        function removeItemFromEdit(index) {
+            if (!editingOrder || !editingOrder.items || index < 0 || index >= editingOrder.items.length) return;
+            editingOrder.items.splice(index, 1);
+            const container = document.getElementById('edit-order-items');
+            container.innerHTML = '';
+            editingOrder.items.forEach((item, i) => {
+                const maxQty = item.maxAvailableQty !== undefined ? item.maxAvailableQty : (item.quantity || Infinity);
+                const imgSrc = item.image || 'https://placehold.co/30x30?text=صورة';
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded gap-2';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <img src="${imgSrc}" class="w-6 h-6 object-cover rounded" onerror="this.src='https://placehold.co/30x30?text=لا+صورة'">
+                        <span class="text-sm font-medium truncate">${item.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-1 space-x-reverse">
+                        <input type="number" min="1" max="${maxQty}" value="${item.quantity}" 
+                               class="order-qty w-12 p-1 border rounded text-center text-xs" 
+                               data-index="${i}" data-max="${maxQty}">
+                        <input type="number" step="0.01" min="0" value="${item.price}" 
+                               class="order-price w-16 p-1 border rounded text-center text-xs" 
+                               data-index="${i}">
+                        <button type="button" onclick="removeItemFromEdit(${i})" 
+                                class="text-red-600 hover:text-red-800 p-1 rounded">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
         function closeEditOrderModal() {
             document.getElementById('editOrderModal').classList.add('hidden');
         }
-
         async function saveOrderChanges() {
-    if (!checkPermission() || !editingOrder || !editingOrder.items || editingOrder.items.length === 0) {
-        alert("لا يمكن حفظ طلب فارغ.");
-        return;
-    }
-
-    const items = [...editingOrder.items];
-    const qtyInputs = document.querySelectorAll('.order-qty');
-    const priceInputs = document.querySelectorAll('.order-price');
-
-    let valid = true;
-    qtyInputs.forEach((input, i) => {
-        const qty = parseFloat(input.value);
-        const price = parseFloat(priceInputs[i].value);
-        if (isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
-            valid = false;
+            if (!checkPermission() || !editingOrder || !editingOrder.items || editingOrder.items.length === 0) {
+                alert("لا يمكن حفظ طلب فارغ.");
+                return;
+            }
+            const items = [...editingOrder.items];
+            const qtyInputs = document.querySelectorAll('.order-qty');
+            const priceInputs = document.querySelectorAll('.order-price');
+            let valid = true;
+            for (let i = 0; i < qtyInputs.length; i++) {
+                const qty = parseFloat(qtyInputs[i].value);
+                const price = parseFloat(priceInputs[i].value);
+                const maxQty = parseFloat(qtyInputs[i].getAttribute('data-max')) || Infinity;
+                if (isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
+                    valid = false;
+                }
+                if (qty > maxQty) {
+                    alert(`الكمية المدخلة لـ "${items[i].name}" تفوق الكمية المتوفرة (${maxQty}).`);
+                    valid = false;
+                }
+                if (valid && items[i]) {
+                    items[i].quantity = qty;
+                    items[i].price = price;
+                }
+            }
+            if (!valid) {
+                return;
+            }
+            const newTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            await db.collection('orders').doc(editingOrder.id).update({
+                items: items,
+                total: newTotal,
+                status: 'processing',
+                modificationRequested: false,
+                modificationApproved: false,
+                lastModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            alert("تم تحديث الطلب بنجاح!");
+            closeEditOrderModal();
+            renderOrders();
+            if (currentSection === 'dashboard') renderRecentOrders();
+            if (currentSection === 'analytics') loadSalesAnalytics();
         }
-        if (items[i]) {
-            items[i].quantity = qty;
-            items[i].price = price;
-        }
-    });
-
-    if (!valid) {
-        alert("يرجى التأكد من أن الكميات والأسعـار صحيحة.");
-        return;
-    }
-
-    const newTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-
-    await db.collection('orders').doc(editingOrder.id).update({
-        items: items,
-        total: newTotal,
-        status: 'processing',
-        modificationRequested: false,
-        modificationApproved: false,
-        lastModified: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    alert("تم تحديث الطلب بنجاح!");
-    closeEditOrderModal();
-    renderOrders();
-    if (currentSection === 'dashboard') renderRecentOrders();
-    if (currentSection === 'analytics') loadSalesAnalytics();
-}
-
         async function loadSalesAnalytics() {
             const ordersSnap = await db.collection('orders')
                 .where('status', 'in', ['shipped', 'delivered'])
@@ -1203,162 +1196,103 @@ function removeItemFromEdit(index) {
                     tbody.appendChild(row);
                 });
         }
-        // عرض قائمة المنتجات للإضافة
-async function showProductSelector() {
-    const selector = document.getElementById('product-selector');
-    const select = document.getElementById('new-product-select');
-    select.innerHTML = '<option value="">جارٍ التحميل...</option>';
-    selector.classList.remove('hidden');
-
-    try {
-        const snap = await db.collection('products').where('inStock', '==', true).get();
-        select.innerHTML = '<option value="">اختر منتجًا</option>';
-        snap.forEach(doc => {
-            const p = doc.data();
-            if (p.name && p.price !== undefined) {
-                const qtyText = p.quantity !== undefined ? ` (الكمية: ${p.quantity})` : '';
-                const option = document.createElement('option');
-                option.value = doc.id;
-                option.textContent = `${p.name} - ${p.price.toFixed(2)} ع.د${qtyText}`;
-                option.setAttribute('data-price', p.price);
-                option.setAttribute('data-name', p.name);
-                option.setAttribute('data-image', p.image || '');
-                option.setAttribute('data-quantity', p.quantity !== undefined ? p.quantity : '');
-                select.appendChild(option);
+        async function showProductSelector() {
+            const selector = document.getElementById('product-selector');
+            const select = document.getElementById('new-product-select');
+            select.innerHTML = '<option value="">جارٍ التحميل...</option>';
+            selector.classList.remove('hidden');
+            try {
+                const snap = await db.collection('products').where('inStock', '==', true).get();
+                select.innerHTML = '<option value="">اختر منتجًا</option>';
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    if (p.name && p.price !== undefined) {
+                        const qtyText = p.quantity !== undefined ? ` (الكمية: ${p.quantity})` : '';
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = `${p.name} - ${p.price.toFixed(2)} ع.د${qtyText}`;
+                        option.setAttribute('data-price', p.price);
+                        option.setAttribute('data-name', p.name);
+                        option.setAttribute('data-image', p.image || '');
+                        option.setAttribute('data-quantity', p.quantity !== undefined ? p.quantity : '');
+                        select.appendChild(option);
+                    }
+                });
+            } catch (error) {
+                console.error("خطأ في تحميل المنتجات:", error);
+                select.innerHTML = '<option value="">خطأ في التحميل</option>';
             }
-        });
-    } catch (error) {
-        console.error("خطأ في تحميل المنتجات:", error);
-        select.innerHTML = '<option value="">خطأ في التحميل</option>';
-    }
-}
-
-// إخفاء قائمة المنتجات
-function hideProductSelector() {
-    document.getElementById('product-selector').classList.add('hidden');
-}
-
-// إضافة منتج مختار إلى الطلب
-function addProductToOrder() {
-    const select = document.getElementById('new-product-select');
-    const qtyInput = document.getElementById('new-product-qty');
-    const productId = select.value;
-    if (!productId) {
-        alert("يرجى اختيار منتج.");
-        return;
-    }
-    const option = select.options[select.selectedIndex];
-    const name = option.getAttribute('data-name');
-    const price = parseFloat(option.getAttribute('data-price'));
-    const image = option.getAttribute('data-image');
-    const maxQtyStr = option.getAttribute('data-quantity');
-    let maxQty = Infinity;
-    if (maxQtyStr && maxQtyStr !== '') {
-        maxQty = parseInt(maxQtyStr);
-    }
-    let qty = parseInt(qtyInput.value);
-
-    if (isNaN(qty) || qty < 1) {
-        alert("الكمية غير صحيحة.");
-        return;
-    }
-    if (qty > maxQty) {
-        alert(`الكمية المطلوبة غير متوفرة. المتوفر: ${maxQty}`);
-        return;
-    }
-
-    if (!editingOrder.items) editingOrder.items = [];
-    editingOrder.items.push({
-        id: productId,
-        name: name,
-        price: price,
-        quantity: qty,
-        image: image,
-        maxAvailableQty: maxQty // ✅ حفظ الكمية المتوفرة للمقارنة لاحقًا
-    });
-
-    hideProductSelector();
-renderEditOrderItems(); // ✅ عرض التحديثات من الذاكرة فقط
-}
-function renderEditOrderItems() {
-    const container = document.getElementById('edit-order-items');
-    container.innerHTML = '';
-    editingOrder.items.forEach((item, index) => {
-        const maxQty = item.maxAvailableQty !== undefined ? item.maxAvailableQty : (item.quantity || Infinity);
-        const imgSrc = item.image || 'https://placehold.co/30x30?text=صورة';
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded gap-2';
-        div.innerHTML = `
-            <div class="flex items-center gap-2 flex-1 min-w-0">
-                <img src="${imgSrc}" class="w-6 h-6 object-cover rounded" onerror="this.src='https://placehold.co/30x30?text=لا+صورة'">
-                <span class="text-sm font-medium truncate">${item.name}</span>
-            </div>
-            <div class="flex items-center space-x-1 space-x-reverse">
-                <input type="number" min="1" max="${maxQty}" value="${item.quantity}" 
-                       class="order-qty w-12 p-1 border rounded text-center text-xs" 
-                       data-index="${index}" data-max="${maxQty}">
-                <input type="number" step="0.01" min="0" value="${item.price}" 
-                       class="order-price w-16 p-1 border rounded text-center text-xs" 
-                       data-index="${index}">
-                <button type="button" onclick="removeItemFromEdit(${index})" 
-                        class="text-red-600 hover:text-red-800 p-1 rounded">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
-async function saveOrderChanges() {
-    if (!checkPermission() || !editingOrder || !editingOrder.items || editingOrder.items.length === 0) {
-        alert("لا يمكن حفظ طلب فارغ.");
-        return;
-    }
-
-    const items = [...editingOrder.items];
-    const qtyInputs = document.querySelectorAll('.order-qty');
-    const priceInputs = document.querySelectorAll('.order-price');
-
-    let valid = true;
-    for (let i = 0; i < qtyInputs.length; i++) {
-        const qty = parseFloat(qtyInputs[i].value);
-        const price = parseFloat(priceInputs[i].value);
-        const maxQty = parseFloat(qtyInputs[i].getAttribute('data-max')) || Infinity;
-
-        if (isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
-            valid = false;
         }
-        if (qty > maxQty) {
-            alert(`الكمية المدخلة لـ "${items[i].name}" تفوق الكمية المتوفرة (${maxQty}).`);
-            valid = false;
+        function hideProductSelector() {
+            document.getElementById('product-selector').classList.add('hidden');
         }
-        if (valid && items[i]) {
-            items[i].quantity = qty;
-            items[i].price = price;
+        function addProductToOrder() {
+            const select = document.getElementById('new-product-select');
+            const qtyInput = document.getElementById('new-product-qty');
+            const productId = select.value;
+            if (!productId) {
+                alert("يرجى اختيار منتج.");
+                return;
+            }
+            const option = select.options[select.selectedIndex];
+            const name = option.getAttribute('data-name');
+            const price = parseFloat(option.getAttribute('data-price'));
+            const image = option.getAttribute('data-image');
+            const maxQtyStr = option.getAttribute('data-quantity');
+            let maxQty = Infinity;
+            if (maxQtyStr && maxQtyStr !== '') {
+                maxQty = parseInt(maxQtyStr);
+            }
+            let qty = parseInt(qtyInput.value);
+            if (isNaN(qty) || qty < 1) {
+                alert("الكمية غير صحيحة.");
+                return;
+            }
+            if (qty > maxQty) {
+                alert(`الكمية المطلوبة غير متوفرة. المتوفر: ${maxQty}`);
+                return;
+            }
+            if (!editingOrder.items) editingOrder.items = [];
+            editingOrder.items.push({
+                id: productId,
+                name: name,
+                price: price,
+                quantity: qty,
+                image: image,
+                maxAvailableQty: maxQty
+            });
+            hideProductSelector();
+            renderEditOrderItems();
         }
-    }
-
-    if (!valid) {
-        return;
-    }
-
-    const newTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-
-    await db.collection('orders').doc(editingOrder.id).update({
-        items: items,
-        total: newTotal,
-        status: 'processing',
-        modificationRequested: false,
-        modificationApproved: false,
-        lastModified: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    alert("تم تحديث الطلب بنجاح!");
-    closeEditOrderModal();
-    renderOrders();
-    if (currentSection === 'dashboard') renderRecentOrders();
-    if (currentSection === 'analytics') loadSalesAnalytics();
-}
+        function renderEditOrderItems() {
+            const container = document.getElementById('edit-order-items');
+            container.innerHTML = '';
+            editingOrder.items.forEach((item, index) => {
+                const maxQty = item.maxAvailableQty !== undefined ? item.maxAvailableQty : (item.quantity || Infinity);
+                const imgSrc = item.image || 'https://placehold.co/30x30?text=صورة';
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded gap-2';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <img src="${imgSrc}" class="w-6 h-6 object-cover rounded" onerror="this.src='https://placehold.co/30x30?text=لا+صورة'">
+                        <span class="text-sm font-medium truncate">${item.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-1 space-x-reverse">
+                        <input type="number" min="1" max="${maxQty}" value="${item.quantity}" 
+                               class="order-qty w-12 p-1 border rounded text-center text-xs" 
+                               data-index="${index}" data-max="${maxQty}">
+                        <input type="number" step="0.01" min="0" value="${item.price}" 
+                               class="order-price w-16 p-1 border rounded text-center text-xs" 
+                               data-index="${index}">
+                        <button type="button" onclick="removeItemFromEdit(${index})" 
+                                class="text-red-600 hover:text-red-800 p-1 rounded">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
         window.onload = () => {
             checkAuthState();
         };
