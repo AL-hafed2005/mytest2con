@@ -539,25 +539,36 @@
                                     </button>
                                 </div>
                                 <div id="edit-order-items" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
-                                <button onclick="showProductSelector()" class="w-full py-1.5 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 mb-4">
+                                <!-- ✅ زر فتح مودال اختيار المنتجات -->
+                                <button onclick="openProductPickerModal()" class="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm font-medium">
                                     + إضافة منتج من المتجر
                                 </button>
-                                <div id="product-selector" class="hidden mb-4">
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">اختر منتجًا:</label>
-                                    <select id="new-product-select" class="w-full p-2 border rounded text-sm"></select>
-                                    <div class="flex gap-2 mt-2">
-                                        <input type="number" id="new-product-qty" min="1" value="1" class="w-20 p-1 border rounded text-center text-xs" placeholder="الكمية">
-                                        <button onclick="addProductToOrder()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs">إضافة</button>
-                                        <button onclick="hideProductSelector()" class="px-3 py-1 bg-gray-300 rounded text-xs">إلغاء</button>
-                                    </div>
-                                </div>
-                                <div class="flex justify-end gap-2">
+                                <div class="flex justify-end gap-2 mt-3">
                                     <button onclick="saveOrderChanges()" class="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs md:text-sm">
                                         حفظ التعديلات
                                     </button>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ مودال اختيار المنتجات الجديد -->
+        <div id="productPickerModal" class="fixed inset-0 overflow-y-auto z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="closeProductPickerModal()"></div>
+                <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-50">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-right">اختر منتجًا لإضافته</h3>
+                        <button onclick="closeProductPickerModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- ✅ تعديل مهم: 3 أعمدة على الهاتف -->
+                    <div id="product-picker-grid" class="p-4 overflow-y-auto max-h-[70vh] grid grid-cols-3 gap-4">
+                        <!-- سيتم ملؤها ديناميكيًا -->
                     </div>
                 </div>
             </div>
@@ -688,7 +699,6 @@
                 renderProducts();
             }
         }
-
         // ✅ دالة updateOrderStatus مع استرداد الكميات عند الإلغاء
         async function updateOrderStatus() {
             if (!checkPermission()) return;
@@ -718,7 +728,6 @@
             closeOrderModal();
             alert('تم تحديث الحالة!');
         }
-
         let currentSection = 'dashboard';
         let editingProductId = null;
         let currentOrder = null;
@@ -1023,7 +1032,6 @@
             alert("تم إرسال طلب التعديل إلى العميل.");
             renderOrders();
         }
-
         // ✅(openEditOrderModal) محدثة لحفظ deliveryFee
         function openEditOrderModal(orderId) {
             if (!checkPermission()) return;
@@ -1039,7 +1047,6 @@
                 document.getElementById('editOrderModal').classList.remove('hidden');
             });
         }
-
         function removeItemFromEdit(index) {
             if (!editingOrder || !editingOrder.items || index < 0 || index >= editingOrder.items.length) return;
             editingOrder.items.splice(index, 1);
@@ -1048,7 +1055,86 @@
         function closeEditOrderModal() {
             document.getElementById('editOrderModal').classList.add('hidden');
         }
+        function closeProductPickerModal() {
+            document.getElementById('productPickerModal').classList.add('hidden');
+        }
+        // ✅ فتح مودال اختيار المنتجات (3 أعمدة على الهاتف)
+        async function openProductPickerModal() {
+            const grid = document.getElementById('product-picker-grid');
+            grid.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">جارٍ تحميل المنتجات...</div>';
 
+            try {
+                const snap = await db.collection('products').where('inStock', '==', true).get();
+                if (snap.empty) {
+                    grid.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">لا توجد منتجات متوفرة</div>';
+                    document.getElementById('productPickerModal').classList.remove('hidden');
+                    return;
+                }
+
+                let html = '';
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    const img = p.image || 'https://placehold.co/100x100?text=لا+صورة';
+                    const qty = p.quantity !== undefined ? p.quantity : 'غير محدود';
+                    const qtyNum = p.quantity !== undefined ? p.quantity : Infinity;
+                    html += `
+                        <div class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <img src="${img}" class="w-full h-32 object-cover" onerror="this.src='https://placehold.co/100x100?text=لا+صورة'">
+                            <div class="p-3 text-right">
+                                <h4 class="font-bold text-sm text-gray-800 truncate">${p.name}</h4>
+                                <p class="text-xs text-gray-600 mt-1">${p.category}</p>
+                                <p class="text-sm text-blue-600 font-bold mt-1">${(p.price || 0).toFixed(2)} ع.د</p>
+                                <p class="text-xs text-green-600 mt-1">الكمية: ${qty}</p>
+                                <button onclick="addProductFromPicker('${doc.id}', \`${p.name.replace(/`/g, '\\`')}\`, ${p.price}, '${img}', ${qtyNum})" 
+                                        class="mt-2 w-full bg-green-600 text-white text-xs py-1 rounded hover:bg-green-700">
+                                    إضافة إلى الطلب
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                grid.innerHTML = html;
+                document.getElementById('productPickerModal').classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                grid.innerHTML = '<div class="col-span-full text-center py-4 text-red-500">خطأ في تحميل المنتجات</div>';
+                document.getElementById('productPickerModal').classList.remove('hidden');
+            }
+        }
+
+        function addProductFromPicker(id, name, price, image, maxQty) {
+            const max = (typeof maxQty === 'number' && !isNaN(maxQty)) ? maxQty : Infinity;
+
+            let existingItemIndex = -1;
+            if (editingOrder.items) {
+                existingItemIndex = editingOrder.items.findIndex(item => item.id === id);
+            } else {
+                editingOrder.items = [];
+            }
+
+            if (existingItemIndex !== -1) {
+                const currentQty = editingOrder.items[existingItemIndex].quantity;
+                const newQty = currentQty + 1;
+                if (newQty > max) {
+                    alert(`الكمية المطلوبة تفوق المتوفر (${max})`);
+                    return;
+                }
+                editingOrder.items[existingItemIndex].quantity = newQty;
+            } else {
+                editingOrder.items.push({
+                    id: id,
+                    name: name,
+                    price: price,
+                    quantity: 1,
+                    image: image,
+                    maxAvailableQty: max
+                });
+            }
+
+            renderEditOrderItems();
+            closeProductPickerModal();
+            alert("تمت إضافة المنتج إلى الطلب!");
+        }
         // ✅(saveOrderChanges) محدثة لتشمل deliveryFee
         async function saveOrderChanges() {
             if (!checkPermission() || !editingOrder || !editingOrder.items || editingOrder.items.length === 0) {
@@ -1076,12 +1162,10 @@
                 }
             }
             if (!valid) return;
-
             // ✅ احتساب المجموع مع سعر التوصيل
             const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
             const deliveryFee = editingOrder.deliveryFee || 0;
             const newTotal = subtotal + deliveryFee;
-
             const batch = db.batch();
             const orderRef = db.collection('orders').doc(editingOrder.id);
             batch.update(orderRef, {
@@ -1093,7 +1177,6 @@
                 modificationApproved: false,
                 lastModified: firebase.firestore.FieldValue.serverTimestamp()
             });
-
             // ✅ خصم الكميات من المنتجات
             for (const item of items) {
                 if (item.id) {
@@ -1113,7 +1196,6 @@
             if (currentSection === 'dashboard') renderRecentOrders();
             if (currentSection === 'analytics') loadSalesAnalytics();
         }
-
         async function loadSalesAnalytics() {
             const ordersSnap = await db.collection('orders')
                 .where('status', 'in', ['shipped', 'delivered'])
@@ -1127,7 +1209,7 @@
                         const productId = item.id || item.name;
                         if (!productSales[productId]) {
                             productSales[productId] = {
-                                name: item.name || 'منتج غير معروف',
+                                name: item.name || 'مكون غير معروف',
                                 quantity: 0,
                                 total: 0
                             };
@@ -1214,90 +1296,6 @@
                     `;
                     tbody.appendChild(row);
                 });
-        }
-        async function showProductSelector() {
-            const selector = document.getElementById('product-selector');
-            const select = document.getElementById('new-product-select');
-            select.innerHTML = '<option value="">جارٍ التحميل...</option>';
-            selector.classList.remove('hidden');
-            try {
-                const snap = await db.collection('products').where('inStock', '==', true).get();
-                select.innerHTML = '<option value="">اختر منتجًا</option>';
-                snap.forEach(doc => {
-                    const p = doc.data();
-                    if (p.name && p.price !== undefined) {
-                        const qtyText = p.quantity !== undefined ? ` (الكمية: ${p.quantity})` : '';
-                        const option = document.createElement('option');
-                        option.value = doc.id;
-                        option.textContent = `${p.name} - ${p.price.toFixed(2)} ع.د${qtyText}`;
-                        option.setAttribute('data-price', p.price);
-                        option.setAttribute('data-name', p.name);
-                        option.setAttribute('data-image', p.image || '');
-                        option.setAttribute('data-quantity', p.quantity !== undefined ? p.quantity : '');
-                        select.appendChild(option);
-                    }
-                });
-            } catch (error) {
-                console.error("خطأ في تحميل المنتجات:", error);
-                select.innerHTML = '<option value="">خطأ في التحميل</option>';
-            }
-        }
-        function hideProductSelector() {
-            document.getElementById('product-selector').classList.add('hidden');
-        }
-        function addProductToOrder() {
-            const select = document.getElementById('new-product-select');
-            const qtyInput = document.getElementById('new-product-qty');
-            const productId = select.value;
-            if (!productId) {
-                alert("يرجى اختيار منتج.");
-                return;
-            }
-            const option = select.options[select.selectedIndex];
-            const name = option.getAttribute('data-name');
-            const price = parseFloat(option.getAttribute('data-price'));
-            const image = option.getAttribute('data-image');
-            const maxQtyStr = option.getAttribute('data-quantity');
-            let maxQty = Infinity;
-            if (maxQtyStr && maxQtyStr !== '') {
-                maxQty = parseInt(maxQtyStr);
-            }
-            let qty = parseInt(qtyInput.value);
-            if (isNaN(qty) || qty < 1) {
-                alert("الكمية غير صحيحة.");
-                return;
-            }
-            if (qty > maxQty) {
-                alert(`الكمية المطلوبة غير متوفرة. المتوفر: ${maxQty}`);
-                return;
-            }
-            let existingItemIndex = -1;
-            if (editingOrder.items) {
-                existingItemIndex = editingOrder.items.findIndex(item => item.id === productId);
-            } else {
-                editingOrder.items = [];
-            }
-            if (existingItemIndex !== -1) {
-                const currentQty = editingOrder.items[existingItemIndex].quantity;
-                const newQty = currentQty + qty;
-                const availableQty = editingOrder.items[existingItemIndex].maxAvailableQty || maxQty;
-                if (newQty > availableQty) {
-                    alert(`الكمية الإجمالية المطلوبة تفوق المتوفر (${availableQty}).`);
-                    return;
-                }
-                editingOrder.items[existingItemIndex].quantity = newQty;
-            } else {
-                editingOrder.items.push({
-                    id: productId,
-                    name: name,
-                    price: price,
-                    quantity: qty,
-                    image: image,
-                    maxAvailableQty: maxQty
-                });
-            }
-            hideProductSelector();
-            renderEditOrderItems();
         }
         function renderEditOrderItems() {
             const container = document.getElementById('edit-order-items');
