@@ -413,7 +413,7 @@
                                 <tr>
                                     <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">الفئة</th>
                                     <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">القطع المباعة</th>
-                                    <th class="px-3 py-2 md:px-6 md:py-3 text-right text-xs font-medium text-gray-500 uppercase">إجمالي المبيعات</th>
+                                    <th class="px-3 py-2 md:px-6 MD:py-3 text-right text-xs font-medium text-gray-500 uppercase">إجمالي المبيعات</th>
                                 </tr>
                             </thead>
                             <tbody id="category-sales-table"></tbody>
@@ -464,7 +464,7 @@
                 </div>
             </div>
         </div>
-        <!-- ✅ نافذة تفاصيل الطلب (محدثة) -->
+        <!-- ✅ نافذة تفاصيل الطلب -->
         <div id="orderModal" class="fixed inset-0 overflow-y-auto z-50 hidden">
             <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeOrderModal()"></div>
@@ -506,9 +506,18 @@
                                         </select>
                                     </div>
                                 </div>
+
+                                <!-- ✅ حقل إدخال سبب التعديل (يظهر عند اختيار "طلب تعديل") -->
+                                <div id="modification-reason-input-container" class="mt-2 hidden">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">سبب طلب التعديل:</label>
+                                    <textarea id="modification-reason-input" 
+                                              placeholder="اكتب سبب طلب التعديل هنا (سيتم عرضه للعميل)"
+                                              class="w-full p-2 border border-yellow-300 rounded text-xs md:text-sm"
+                                              rows="2"></textarea>
+                                </div>
+
                                 <!-- ✅ زر "تعديل الطلب" -->
                                 <div class="flex justify-end mt-3">
-                                    <!-- زر التعديل يظهر فقط عند حالة "مسموح بالتعديل" -->
                                     <button id="edit-order-button" 
                                             onclick="openEditOrderModal(currentOrder.id)"
                                             class="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs md:text-sm ml-2 hidden">
@@ -554,7 +563,6 @@
                 </div>
             </div>
         </div>
-
         <!-- ✅ مودال اختيار المنتجات الجديد -->
         <div id="productPickerModal" class="fixed inset-0 overflow-y-auto z-50 hidden">
             <div class="flex items-center justify-center min-h-screen p-4">
@@ -699,27 +707,48 @@
                 renderProducts();
             }
         }
-        // ✅ دالة updateOrderStatus مع استرداد الكميات عند الإلغاء
+
+        // ✅ دالة updateOrderStatus المحدثة لمعالجة "طلب تعديل" مع سبب
         async function updateOrderStatus() {
             if (!checkPermission()) return;
             if (!currentOrder) return;
+            
             const newStatus = document.getElementById('order-status').value;
             const orderRef = db.collection('orders').doc(currentOrder.id);
             const batch = db.batch();
-            batch.update(orderRef, { status: newStatus });
-            if (newStatus === 'cancelled' && currentOrder.items && Array.isArray(currentOrder.items)) {
-                for (const item of currentOrder.items) {
-                    if (item.id) {
-                        const productRef = db.collection('products').doc(item.id);
-                        const productSnap = await productRef.get();
-                        if (productSnap.exists) {
-                            const currentQty = productSnap.data().quantity || 0;
-                            const newQty = currentQty + (item.quantity || 0);
-                            batch.update(productRef, { quantity: newQty });
+            
+            if (newStatus === 'modification-requested') {
+                const reason = document.getElementById('modification-reason-input').value.trim();
+                if (!reason) {
+                    alert("يرجى كتابة سبب طلب التعديل.");
+                    return;
+                }
+                batch.update(orderRef, {
+                    status: newStatus,
+                    modificationRequested: true,
+                    modificationDetails: {
+                        message: reason,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    },
+                    modificationApproved: null
+                });
+            } else {
+                batch.update(orderRef, { status: newStatus });
+                if (newStatus === 'cancelled' && currentOrder.items && Array.isArray(currentOrder.items)) {
+                    for (const item of currentOrder.items) {
+                        if (item.id) {
+                            const productRef = db.collection('products').doc(item.id);
+                            const productSnap = await productRef.get();
+                            if (productSnap.exists) {
+                                const currentQty = productSnap.data().quantity || 0;
+                                const newQty = currentQty + (item.quantity || 0);
+                                batch.update(productRef, { quantity: newQty });
+                            }
                         }
                     }
                 }
             }
+            
             await batch.commit();
             renderOrders();
             loadDashboardData();
@@ -728,6 +757,17 @@
             closeOrderModal();
             alert('تم تحديث الحالة!');
         }
+
+        // ✅ إظهار/إخفاء حقل سبب التعديل عند تغيير الحالة
+        document.getElementById('order-status').addEventListener('change', function() {
+            const container = document.getElementById('modification-reason-input-container');
+            if (this.value === 'modification-requested') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        });
+
         let currentSection = 'dashboard';
         let editingProductId = null;
         let currentOrder = null;
@@ -1038,7 +1078,6 @@
             db.collection('orders').doc(orderId).get().then(doc => {
                 if (!doc.exists) return;
                 editingOrder = { id: doc.id, ...doc.data() };
-                // ✅ تأكد من وجود deliveryFee (حتى لو 0)
                 if (editingOrder.deliveryFee === undefined) {
                     editingOrder.deliveryFee = 0;
                 }
@@ -1062,7 +1101,6 @@
         async function openProductPickerModal() {
             const grid = document.getElementById('product-picker-grid');
             grid.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">جارٍ تحميل المنتجات...</div>';
-
             try {
                 const snap = await db.collection('products').where('inStock', '==', true).get();
                 if (snap.empty) {
@@ -1070,7 +1108,6 @@
                     document.getElementById('productPickerModal').classList.remove('hidden');
                     return;
                 }
-
                 let html = '';
                 snap.forEach(doc => {
                     const p = doc.data();
@@ -1101,17 +1138,14 @@
                 document.getElementById('productPickerModal').classList.remove('hidden');
             }
         }
-
         function addProductFromPicker(id, name, price, image, maxQty) {
             const max = (typeof maxQty === 'number' && !isNaN(maxQty)) ? maxQty : Infinity;
-
             let existingItemIndex = -1;
             if (editingOrder.items) {
                 existingItemIndex = editingOrder.items.findIndex(item => item.id === id);
             } else {
                 editingOrder.items = [];
             }
-
             if (existingItemIndex !== -1) {
                 const currentQty = editingOrder.items[existingItemIndex].quantity;
                 const newQty = currentQty + 1;
@@ -1130,7 +1164,6 @@
                     maxAvailableQty: max
                 });
             }
-
             renderEditOrderItems();
             closeProductPickerModal();
             alert("تمت إضافة المنتج إلى الطلب!");
@@ -1162,7 +1195,6 @@
                 }
             }
             if (!valid) return;
-            // ✅ احتساب المجموع مع سعر التوصيل
             const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
             const deliveryFee = editingOrder.deliveryFee || 0;
             const newTotal = subtotal + deliveryFee;
@@ -1171,13 +1203,12 @@
             batch.update(orderRef, {
                 items: items,
                 total: newTotal,
-                deliveryFee: deliveryFee, // ✅ حفظ سعر التوصيل
+                deliveryFee: deliveryFee,
                 status: 'processing',
                 modificationRequested: false,
                 modificationApproved: false,
                 lastModified: firebase.firestore.FieldValue.serverTimestamp()
             });
-            // ✅ خصم الكميات من المنتجات
             for (const item of items) {
                 if (item.id) {
                     const productRef = db.collection('products').doc(item.id);
