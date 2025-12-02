@@ -344,7 +344,7 @@
                             <div class="p-2.5 md:p-3 bg-green-100 rounded-lg"><i class="fas fa-money-bill-wave text-green-600 text-lg md:text-xl"></i></div>
                             <div class="mr-3 md:mr-4">
                                 <p class="text-gray-500 text-xs md:text-sm">إجمالي المبيعات</p>
-                                <p class="text-xl md:text-2xl font-bold text-gray-800" id="total-sales">0 ع.د</p>
+                                <p class="text-xl md:text-2xl font-bold text-gray-800" id="total-sales">0د.ع</p>
                             </div>
                         </div>
                     </div>
@@ -493,7 +493,7 @@
                                 </div>
                                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                                     <div class="text-base font-bold text-gray-900">
-                                        المجموع: <span id="order-total">0.00</span> ع.د
+                                        المجموع: <span id="order-total">0.00</span> د.ع
                                     </div>
                                     <div class="w-full md:w-auto">
                                         <label class="block text-xs font-medium text-gray-700 mb-1">تحديث الحالة</label>
@@ -883,7 +883,7 @@
                 const order = doc.data();
                 totalSales += order.total || 0;
             });
-            document.getElementById('total-sales').textContent = totalSales.toLocaleString('ar-SA') + ' ع.د';
+            document.getElementById('total-sales').textContent = totalSales.toLocaleString('ar-SA') + ' د.ع';
         }
         async function renderRecentOrders() {
             const tbody = document.getElementById('recent-orders');
@@ -900,7 +900,7 @@
                     </td>
                     <td class="text-xs md:text-sm">#${doc.id}</td>
                     <td class="text-xs md:text-sm">${o.customerName || '---'}</td>
-                    <td class="text-xs md:text-sm">${(o.total || 0).toFixed(2)} ع.د</td>
+                    <td class="text-xs md:text-sm">${(o.total || 0).toFixed(2)} د.ع</td>
                     <td class="text-xs md:text-sm"><span class="order-status status-${o.status || 'processing'}">${getStatusText(o.status)}</span></td>
                     <td class="text-xs md:text-sm">${formatDateTime12Hour(o.date) || '---'}</td>
                 `;
@@ -925,7 +925,7 @@
                     <p class="text-gray-600 text-xs md:text-sm mb-2">${p.category}</p>
                     <p class="text-gray-500 text-xs">${quantityText}</p>
                     <div class="flex justify-between items-center">
-                        <span class="font-bold text-blue-600 text-sm md:text-base">${(p.price || 0).toFixed(2)} ع.د</span>
+                        <span class="font-bold text-blue-600 text-sm md:text-base">${(p.price || 0).toFixed(2)} د.ع</span>
                         <div class="flex space-x-1 space-x-reverse">
                             <button onclick="editProduct('${doc.id}')" class="text-blue-600 text-xs md:text-sm"><i class="fas fa-edit"></i></button>
                             <button onclick="deleteProduct('${doc.id}')" class="text-red-600 text-xs md:text-sm"><i class="fas fa-trash"></i></button>
@@ -1004,7 +1004,7 @@
                                 <span class="order-status ${statusClass} text-xs px-2 py-1">${statusText}</span>
                             </div>
                             <p class="text-xs text-gray-500 mt-1">${formatDateTime12Hour(o.date) || '---'}</p>
-                            <p class="font-semibold text-gray-800 mt-1 text-sm">${(o.total || 0).toLocaleString('ar-SA')} ع.د</p>
+                            <p class="font-semibold text-gray-800 mt-1 text-sm">${(o.total || 0).toLocaleString('ar-SA')} د.ع</p>
                             <p class="text-xs text-blue-600 mt-1">اضغط لعرض التفاصيل</p>
                         </div>
                     </div>
@@ -1042,7 +1042,7 @@
                              onerror="this.src='https://placehold.co/30x30?text=لا+صورة'">
                         <span class="text-xs md:text-sm">${item.name} (x${item.quantity})</span>
                     </div>
-                    <span class="text-xs md:text-sm">${((item.price || 0) * (item.quantity || 1)).toFixed(2)} ع.د</span>
+                    <span class="text-xs md:text-sm">${((item.price || 0) * (item.quantity || 1)).toFixed(2)}د.ع</span>
                 </div>
             `).join('');
             const editButton = document.getElementById('edit-order-button');
@@ -1120,7 +1120,7 @@
                             <div class="p-3 text-right">
                                 <h4 class="font-bold text-sm text-gray-800 truncate">${p.name}</h4>
                                 <p class="text-xs text-gray-600 mt-1">${p.category}</p>
-                                <p class="text-sm text-blue-600 font-bold mt-1">${(p.price || 0).toFixed(2)} ع.د</p>
+                                <p class="text-sm text-blue-600 font-bold mt-1">${(p.price || 0).toFixed(2)} د.ع</p>
                                 <p class="text-xs text-green-600 mt-1">الكمية: ${qty}</p>
                                 <button onclick="addProductFromPicker('${doc.id}', \`${p.name.replace(/`/g, '\\`')}\`, ${p.price}, '${img}', ${qtyNum})" 
                                         class="mt-2 w-full bg-green-600 text-white text-xs py-1 rounded hover:bg-green-700">
@@ -1323,7 +1323,7 @@
                     row.innerHTML = `
                         <td class="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm">${category}</td>
                         <td class="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm">${data.quantity}</td>
-                        <td class="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm">${data.total.toFixed(2)} ع.د</td>
+                        <td class="px-3 py-2 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm">${data.total.toFixed(2)} د.ع</td>
                     `;
                     tbody.appendChild(row);
                 });
