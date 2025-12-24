@@ -306,7 +306,7 @@ margin-top: 15px;
 <option value="weights">رفع أثقال</option>
 </select>
 <div id="gpsSection" class="hidden">
-<div class="gps-status" id="gpsStatus">جارٍ تفعيل GPS...</div>
+<div class="gps-status" id="gpsStatus">جارٍ تفعيل GPS والحساس...</div>
 </div>
 <div class="stats-grid">
 <div class="stat-card">
@@ -497,13 +497,14 @@ let weeklyChart = null;
 let syncInterval = null;
 let dailyCalorieGoal = 2000;
 
-// --- متغيرات الخطوات ---
-let lastPeakTime = 0;
-let accelerationHistory = [];
+// --- متغيرات الخطوات المحسّنة ---
+let lastAccelMagnitude = 0;
+let lastValleyTime = 0;
+let lastStepTime = 0;
+let isValleyDetected = false;
 const STEP_THRESHOLD = 1.8;
-const MIN_STEP_INTERVAL = 300;
-const MAX_STEP_INTERVAL = 1500;
-const HISTORY_SIZE = 10;
+const MIN_STEP_INTERVAL = 300;   // 300ms
+const MAX_STEP_INTERVAL = 1500;  // 1500ms
 
 // --- دعم الوضع الليلي التلقائي ---
 function initTheme() {
@@ -784,348 +785,344 @@ const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 return R * c;
 }
 
-// --- عد الخطوات من الحساس ---
+// === ✅ خوارزمية عدّ الخطوات المحسّنة (Peak-Valley) ===
 function handleStep(event) {
-if (!workoutActive) return;
-const accel = event.accelerationIncludingGravity;
-if (!accel) return;
+  if (!workoutActive) return;
+  const acc = event.accelerationIncludingGravity;
+  if (!acc) return;
 
-const currentAccel = Math.abs(accel.y || accel.z || 0);
-const now = Date.now();
+  const now = Date.now();
+  const accelMag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+  const delta = accelMag - lastAccelMagnitude;
+  lastAccelMagnitude = accelMag;
 
-accelerationHistory.push({ time: now, value: currentAccel });
-if (accelerationHistory.length > HISTORY_SIZE) accelerationHistory.shift();
-if (accelerationHistory.length < 5) return;
+  // اكتشاف "انخفاض" (valley)
+  if (delta < -0.8 && accelMag < 9.0) {
+    lastValleyTime = now;
+    isValleyDetected = true;
+  }
 
-const recent = accelerationHistory.slice(-5);
-const mid = recent[2].value;
-const isPeak = mid > recent[1].value && mid > recent[3].value && mid > STEP_THRESHOLD;
-
-if (isPeak && now - lastPeakTime > MIN_STEP_INTERVAL) {
-setTimeout(() => {
-if (!workoutActive) return;
-const newAccel = Math.abs(window.lastAccel || 0);
-if (newAccel < mid - 0.5) {
-const stepTimeDelta = now - lastPeakTime;
-if (stepTimeDelta >= MIN_STEP_INTERVAL && stepTimeDelta <= MAX_STEP_INTERVAL) {
-stepCount++;
-lastPeakTime = now;
-document.getElementById('stepCountDisplay').innerText = stepCount;
-document.getElementById('gpsStatus').innerText = 
-`📍 ${distance.toFixed(2)} كم | 🚶‍♂️ ${stepCount} خطوة`;
-}
-}
-}, 100);
-window.lastAccel = currentAccel;
-}
+  // اكتشاف "ذروة" (peak) بعد انخفاض
+  if (Math.abs(delta) > STEP_THRESHOLD) {
+    if (isValleyDetected && (now - lastValleyTime) < 800) {
+      if ((now - lastStepTime) > MIN_STEP_INTERVAL && (now - lastStepTime) < MAX_STEP_INTERVAL) {
+        stepCount++;
+        lastStepTime = now;
+        isValleyDetected = false;
+        document.getElementById('stepCountDisplay').innerText = stepCount;
+        const statusEl = document.getElementById('gpsStatus');
+        if (statusEl) {
+          statusEl.innerText = `📍 ${distance.toFixed(2)} كم | 🚶‍♂️ ${stepCount} خطوة`;
+        }
+      }
+    }
+  }
 }
 
 function startStepTracking() {
-if (typeof DeviceMotionEvent === 'undefined') return;
-if (typeof DeviceMotionEvent.requestPermission === 'function') {
-DeviceMotionEvent.requestPermission().then(permission => {
-if (permission === 'granted') {
-window.addEventListener('devicemotion', handleStep);
-}
-}).catch(() => {});
-} else {
-window.addEventListener('devicemotion', handleStep);
-}
+  if (typeof DeviceMotionEvent === 'undefined') return;
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        window.addEventListener('devicemotion', handleStep);
+      }
+    }).catch(() => {});
+  } else {
+    window.addEventListener('devicemotion', handleStep);
+  }
 }
 
-// ✅ === التعديل الأساسي هنا ===
-function onActivityChange() {
-const selectedActivity = document.getElementById('activityType').value;
-const isGpsNeeded = ['walking', 'running', 'cycling'].includes(selectedActivity);
-const gpsSection = document.getElementById('gpsSection');
-if (isGpsNeeded) {
-gpsSection.classList.remove('hidden');
-startGPS();
-// بدء تتبع الخطوات فقط للمشي والركض
-if (['walking', 'running'].includes(selectedActivity)) {
-startStepTracking();
-}
-} else {
-gpsSection.classList.add('hidden');
-if (watchId) navigator.geolocation.clearWatch(watchId);
-watchId = null;
-}
-}
-// ================================
-
+// === ✅ تحسين GPS مع فلترة ===
 function startGPS() {
-if (!navigator.geolocation) {
-document.getElementById('gpsStatus').innerText = translations[currentLang].gpsError;
-return;
+  if (!navigator.geolocation) {
+    document.getElementById('gpsStatus').innerText = translations[currentLang].gpsError;
+    return;
+  }
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const accuracy = position.coords.accuracy;
+      const speed = position.coords.speed || 0;
+      const { latitude, longitude } = position.coords;
+
+      // فلترة 1: تجاهل الدقة المنخفضة
+      if (accuracy > 20) return;
+
+      // فلترة 2: تجاهل القفزات غير المنطقية
+      if (lastPosition) {
+        const d = haversineDistance(lastPosition.lat, lastPosition.lng, latitude, longitude);
+        const timeDiff = (new Date().getTime() - lastPosition.time) / 1000;
+        if (timeDiff > 0) {
+          const calcSpeed = (d * 1000) / timeDiff; // م/ث
+          if (calcSpeed > 4.2) return; // > 15 كم/س
+        }
+      }
+
+      document.getElementById('gpsStatus').innerText = translations[currentLang].gpsActive;
+      if (lastPosition) {
+        const d = haversineDistance(lastPosition.lat, lastPosition.lng, latitude, longitude);
+        distance += d;
+        document.getElementById('distanceDisplay').innerText = distance.toFixed(2);
+      }
+      lastPosition = { lat: latitude, lng: longitude, time: new Date().getTime() };
+      positions.push({ lat: latitude, lng: longitude, time: new Date().toISOString() });
+    },
+    (error) => {
+      let msg = translations[currentLang].gpsError;
+      if (error.code === 1) msg = translations[currentLang].gpsDenied;
+      document.getElementById('gpsStatus').innerText = msg;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
-if (watchId) navigator.geolocation.clearWatch(watchId);
-watchId = navigator.geolocation.watchPosition(
-(position) => {
-document.getElementById('gpsStatus').innerText = translations[currentLang].gpsActive;
-const { latitude, longitude } = position.coords;
-if (lastPosition) {
-const d = haversineDistance(lastPosition.lat, lastPosition.lng, latitude, longitude);
-distance += d;
-document.getElementById('distanceDisplay').innerText = distance.toFixed(2);
-}
-lastPosition = { lat: latitude, lng: longitude };
-positions.push({ lat: latitude, lng: longitude, time: new Date().toISOString() });
-},
-(error) => {
-let msg = translations[currentLang].gpsError;
-if (error.code === 1) msg = translations[currentLang].gpsDenied;
-document.getElementById('gpsStatus').innerText = msg;
-},
-{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-);
+
+function onActivityChange() {
+  const selectedActivity = document.getElementById('activityType').value;
+  const isGpsNeeded = ['walking', 'running', 'cycling'].includes(selectedActivity);
+  const gpsSection = document.getElementById('gpsSection');
+  
+  if (isGpsNeeded) {
+    gpsSection.classList.remove('hidden');
+    document.getElementById('gpsStatus').innerText = "جارٍ تفعيل GPS والحساس...";
+    startGPS();
+    if (['walking', 'running'].includes(selectedActivity)) {
+      startStepTracking();
+    }
+  } else {
+    gpsSection.classList.add('hidden');
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
 }
 
 function startWorkout() {
-const selectedActivity = document.getElementById('activityType').value;
-workoutActive = true;
-startTime = Date.now();
-distance = 0;
-stepCount = 0;
-lastPosition = null;
-positions = [];
-accelerationHistory = [];
-lastPeakTime = 0;
+  const selectedActivity = document.getElementById('activityType').value;
+  workoutActive = true;
+  startTime = Date.now();
+  distance = 0;
+  stepCount = 0;
+  lastPosition = null;
+  positions = [];
+  lastAccelMagnitude = 0;
+  lastValleyTime = 0;
+  lastStepTime = 0;
+  isValleyDetected = false;
 
-document.getElementById('distanceDisplay').innerText = '0.00';
-document.getElementById('stepCountDisplay').innerText = '0';
-document.getElementById('startBtn').classList.add('hidden');
-document.getElementById('stopBtn').classList.remove('hidden');
+  document.getElementById('distanceDisplay').innerText = '0.00';
+  document.getElementById('stepCountDisplay').innerText = '0';
+  document.getElementById('startBtn').classList.add('hidden');
+  document.getElementById('stopBtn').classList.remove('hidden');
 
-timerInterval = setInterval(() => {
-const elapsed = Date.now() - startTime;
-const mins = Math.floor(elapsed / 60000);
-const secs = Math.floor((elapsed % 60000) / 1000);
-document.getElementById('timeDisplay').innerText =
-`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}, 1000);
+  timerInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const mins = Math.floor(elapsed / 60000);
+    const secs = Math.floor((elapsed % 60000) / 1000);
+    document.getElementById('timeDisplay').innerText =
+    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, 1000);
 }
 
 function stopWorkout() {
-workoutActive = false;
-clearInterval(timerInterval);
-if (watchId) navigator.geolocation.clearWatch(watchId);
-window.removeEventListener('devicemotion', handleStep);
+  workoutActive = false;
+  clearInterval(timerInterval);
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  window.removeEventListener('devicemotion', handleStep);
 
-const duration = Math.round((Date.now() - startTime) / 1000 / 60);
-const calories = Math.round(distance * 60); // تقدير
+  const duration = Math.round((Date.now() - startTime) / 1000 / 60);
+  // إذا لم يسجل GPS مسافة، نحسبها من الخطوات (PDR)
+  const finalDistance = distance > 0 ? distance : (stepCount * 0.75 / 1000); // 0.75 متر/خطوة
+  const calories = Math.round(finalDistance * 60);
 
-db.collection('users').doc(currentUser.uid).collection('workouts').add({
-type: document.getElementById('activityType').value,
-duration,
-distance: parseFloat(distance.toFixed(2)),
-calories,
-steps: stepCount,
-date: new Date().toISOString().split('T')[0],
-positions,
-timestamp: firebase.firestore.FieldValue.serverTimestamp()
-}).then(() => {
-document.getElementById('startBtn').classList.remove('hidden');
-document.getElementById('stopBtn').classList.add('hidden');
-distance = 0;
-lastPosition = null;
-stepCount = 0;
-loadDashboard();
-});
+  db.collection('users').doc(currentUser.uid).collection('workouts').add({
+    type: document.getElementById('activityType').value,
+    duration,
+    distance: parseFloat(finalDistance.toFixed(2)),
+    calories,
+    steps: stepCount,
+    date: new Date().toISOString().split('T')[0],
+    positions,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    document.getElementById('startBtn').classList.remove('hidden');
+    document.getElementById('stopBtn').classList.add('hidden');
+    distance = 0;
+    lastPosition = null;
+    stepCount = 0;
+    loadDashboard();
+  });
 }
 
 // --- التغذية ---
 function saveNutrition() {
-const food = document.getElementById('foodItem').value.trim();
-const calories = parseFloat(document.getElementById('caloriesInput').value) || 0;
-const protein = parseFloat(document.getElementById('proteinInput').value) || 0;
-const carbs = parseFloat(document.getElementById('carbsInput').value) || 0;
-const fats = parseFloat(document.getElementById('fatsInput').value) || 0;
-const meal = document.getElementById('mealType').value;
-if (!food) return alert('أدخل اسم الطعام');
-db.collection('users').doc(currentUser.uid).collection('nutrition').add({
-food,
-calories,
-protein,
-carbs,
-fats,
-meal,
-date: new Date().toISOString().split('T')[0],
-timestamp: firebase.firestore.FieldValue.serverTimestamp()
-}).then(() => {
-loadNutritionList();
-document.getElementById('foodItem').value = '';
-document.getElementById('caloriesInput').value = '';
-document.getElementById('proteinInput').value = '';
-document.getElementById('carbsInput').value = '';
-document.getElementById('fatsInput').value = '';
-});
+  const food = document.getElementById('foodItem').value.trim();
+  const calories = parseFloat(document.getElementById('caloriesInput').value) || 0;
+  const protein = parseFloat(document.getElementById('proteinInput').value) || 0;
+  const carbs = parseFloat(document.getElementById('carbsInput').value) || 0;
+  const fats = parseFloat(document.getElementById('fatsInput').value) || 0;
+  const meal = document.getElementById('mealType').value;
+  if (!food) return alert('أدخل اسم الطعام');
+  db.collection('users').doc(currentUser.uid).collection('nutrition').add({
+    food,
+    calories,
+    protein,
+    carbs,
+    fats,
+    meal,
+    date: new Date().toISOString().split('T')[0],
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    loadNutritionList();
+    document.getElementById('foodItem').value = '';
+    document.getElementById('caloriesInput').value = '';
+    document.getElementById('proteinInput').value = '';
+    document.getElementById('carbsInput').value = '';
+    document.getElementById('fatsInput').value = '';
+  });
 }
 function loadNutritionList() {
-const container = document.getElementById('nutritionList');
-container.innerHTML = '<p>جارٍ التحميل...</p>';
-const today = new Date().toISOString().split('T')[0];
-db.collection('users').doc(currentUser.uid).collection('nutrition')
-.get()
-.then(snapshot => {
-container.innerHTML = '<h4>اليوم:</h4>';
-let hasData = false;
-snapshot.forEach(doc => {
-const n = doc.data();
-if (n.date === today) {
-hasData = true;
-container.innerHTML += `<div style="padding: 8px; border-bottom: 1px solid #eee;">
-<strong>${n.food}</strong> (${n.meal})<br>
-${n.calories} سعرة حرارية
-</div>`;
-}
-});
-if (!hasData) {
-container.innerHTML += '<p>لم تُسجّل أي وجبات اليوم.</p>';
-}
-});
+  const container = document.getElementById('nutritionList');
+  container.innerHTML = '<p>جارٍ التحميل...</p>';
+  const today = new Date().toISOString().split('T')[0];
+  db.collection('users').doc(currentUser.uid).collection('nutrition')
+  .get()
+  .then(snapshot => {
+    container.innerHTML = '<h4>اليوم:</h4>';
+    let hasData = false;
+    snapshot.forEach(doc => {
+      const n = doc.data();
+      if (n.date === today) {
+        hasData = true;
+        container.innerHTML += `<div style="padding: 8px; border-bottom: 1px solid #eee;">
+        <strong>${n.food}</strong> (${n.meal})<br>
+        ${n.calories} سعرة حرارية
+        </div>`;
+      }
+    });
+    if (!hasData) {
+      container.innerHTML += '<p>لم تُسجّل أي وجبات اليوم.</p>';
+    }
+  });
 }
 
 // --- الملف الشخصي ---
 function saveProfile() {
-const age = parseInt(document.getElementById('ageInput').value);
-const weight = parseFloat(document.getElementById('weightInput').value);
-const height = parseInt(document.getElementById('heightInput').value);
-const goal = document.getElementById('goalInput').value;
-const calorieGoal = parseInt(document.getElementById('calorieGoalInput').value) || 2000;
-if (!age || !weight || !height) return alert('أكمل المعلومات');
-db.collection('users').doc(currentUser.uid).set({
-age, weight, height, goal, calorieGoal,
-username: currentUser.displayName,
-updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-}, { merge: true })
-.then(() => {
-dailyCalorieGoal = calorieGoal;
-alert('تم الحفظ');
-loadDashboard();
-});
+  const age = parseInt(document.getElementById('ageInput').value);
+  const weight = parseFloat(document.getElementById('weightInput').value);
+  const height = parseInt(document.getElementById('heightInput').value);
+  const goal = document.getElementById('goalInput').value;
+  const calorieGoal = parseInt(document.getElementById('calorieGoalInput').value) || 2000;
+  if (!age || !weight || !height) return alert('أكمل المعلومات');
+  db.collection('users').doc(currentUser.uid).set({
+    age, weight, height, goal, calorieGoal,
+    username: currentUser.displayName,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true })
+  .then(() => {
+    dailyCalorieGoal = calorieGoal;
+    alert('تم الحفظ');
+    loadDashboard();
+  });
 }
 function loadProfile() {
-db.collection('users').doc(currentUser.uid).get().then(doc => {
-if (doc.exists) {
-const data = doc.data();
-document.getElementById('ageInput').value = data.age || '';
-document.getElementById('weightInput').value = data.weight || '';
-document.getElementById('heightInput').value = data.height || '';
-document.getElementById('goalInput').value = data.goal || 'maintain';
-document.getElementById('calorieGoalInput').value = data.calorieGoal || 2000;
-dailyCalorieGoal = data.calorieGoal || 2000;
-document.getElementById('userInfo').innerText = `${translations[currentLang].appTitle} — ${data.username}`;
-}
-});
+  db.collection('users').doc(currentUser.uid).get().then(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      document.getElementById('ageInput').value = data.age || '';
+      document.getElementById('weightInput').value = data.weight || '';
+      document.getElementById('heightInput').value = data.height || '';
+      document.getElementById('goalInput').value = data.goal || 'maintain';
+      document.getElementById('calorieGoalInput').value = data.calorieGoal || 2000;
+      dailyCalorieGoal = data.calorieGoal || 2000;
+      document.getElementById('userInfo').innerText = `${translations[currentLang].appTitle} — ${data.username}`;
+    }
+  });
 }
 
 // --- لوحة التحكم ---
 function loadDashboard() {
-const today = new Date().toISOString().split('T')[0];
-const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-Promise.all([
-db.collection('users').doc(currentUser.uid).collection('workouts').get(),
-db.collection('users').doc(currentUser.uid).collection('nutrition').get(),
-db.collection('users').doc(currentUser.uid).get()
-]).then(([workoutsSnap, nutritionSnap, userDoc]) => {
-// تحميل الهدف اليومي
-const userData = userDoc.data();
-dailyCalorieGoal = userData?.calorieGoal || 2000;
-// حساب اليوم
-let burned = 0, consumed = 0;
-workoutsSnap.forEach(doc => {
-const w = doc.data();
-if (w.date === today) burned += w.calories || 0;
-});
-nutritionSnap.forEach(doc => {
-const n = doc.data();
-if (n.date === today) consumed += n.calories || 0;
-});
-document.getElementById('caloriesBurned').innerText = burned;
-document.getElementById('caloriesConsumed').innerText = consumed;
-document.getElementById('netCalories').innerText = (burned - consumed);
-updateCalorieProgress(consumed, dailyCalorieGoal);
-// تقويم النشاط
-renderActivityCalendar();
-// الأسبوع
-const labels = [];
-const burnedData = [], consumedData = [];
-for (let i = 6; i >= 0; i--) {
-const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-labels.push(d);
-burnedData.push(0);
-consumedData.push(0);
-}
-workoutsSnap.forEach(doc => {
-const w = doc.data();
-if (w.date >= weekAgo) {
-const idx = labels.indexOf(w.date);
-if (idx >= 0) burnedData[idx] += w.calories || 0;
-}
-});
-nutritionSnap.forEach(doc => {
-const n = doc.data();
-if (n.date >= weekAgo) {
-const idx = labels.indexOf(n.date);
-if (idx >= 0) consumedData[idx] += n.calories || 0;
-}
-});
-// رسم الرسم البياني
-const ctx = document.getElementById('weeklyChart').getContext('2d');
-if (weeklyChart) weeklyChart.destroy();
-weeklyChart = new Chart(ctx, {
-type: 'bar',
-data: {
-labels: labels,
-datasets: [
-{
-label: currentLang === 'ar' ? 'السعرات المحروقة' : 'Calories Burned',
-data: burnedData,
-backgroundColor: 'rgba(67, 97, 238, 0.6)'
-},
-{
-label: currentLang === 'ar' ? 'السعرات المستهلكة' : 'Calories Consumed',
-data: consumedData,
-backgroundColor: 'rgba(239, 68, 68, 0.6)'
-}
-]
-},
-options: {
-responsive: true,
-maintainAspectRatio: false,
-scales: { y: { beginAtZero: true } },
-plugins: {
-tooltip: {
-callbacks: {
-afterLabel: function(context) {
-const datasetLabel = context.dataset.label;
-const value = context.parsed.y;
-const goal = dailyCalorieGoal;
-if (datasetLabel.includes('المستهلكة') || datasetLabel.includes('Consumed')) {
-return `الهدف: ${goal}`;
-}
-return '';
-}
-}
-}
-}
-}
-});
-// تنبيه عدم النشاط
-const hasWorkoutToday = workoutsSnap.docs.some(doc => doc.data().date === today);
-if (!hasWorkoutToday && new Date().getHours() > 18) {
-showNotification(translations[currentLang].notificationInactive);
-}
-});
+  const today = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  Promise.all([
+    db.collection('users').doc(currentUser.uid).collection('workouts').get(),
+    db.collection('users').doc(currentUser.uid).collection('nutrition').get(),
+    db.collection('users').doc(currentUser.uid).get()
+  ]).then(([workoutsSnap, nutritionSnap, userDoc]) => {
+    const userData = userDoc.data();
+    dailyCalorieGoal = userData?.calorieGoal || 2000;
+    let burned = 0, consumed = 0;
+    workoutsSnap.forEach(doc => {
+      const w = doc.data();
+      if (w.date === today) burned += w.calories || 0;
+    });
+    nutritionSnap.forEach(doc => {
+      const n = doc.data();
+      if (n.date === today) consumed += n.calories || 0;
+    });
+    document.getElementById('caloriesBurned').innerText = burned;
+    document.getElementById('caloriesConsumed').innerText = consumed;
+    document.getElementById('netCalories').innerText = (burned - consumed);
+    updateCalorieProgress(consumed, dailyCalorieGoal);
+    renderActivityCalendar();
+    const labels = [], burnedData = [], consumedData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      labels.push(d);
+      burnedData.push(0);
+      consumedData.push(0);
+    }
+    workoutsSnap.forEach(doc => {
+      const w = doc.data();
+      if (w.date >= weekAgo) {
+        const idx = labels.indexOf(w.date);
+        if (idx >= 0) burnedData[idx] += w.calories || 0;
+      }
+    });
+    nutritionSnap.forEach(doc => {
+      const n = doc.data();
+      if (n.date >= weekAgo) {
+        const idx = labels.indexOf(n.date);
+        if (idx >= 0) consumedData[idx] += n.calories || 0;
+      }
+    });
+    const ctx = document.getElementById('weeklyChart').getContext('2d');
+    if (weeklyChart) weeklyChart.destroy();
+    weeklyChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: currentLang === 'ar' ? 'السعرات المحروقة' : 'Calories Burned',
+            data: burnedData,
+            backgroundColor: 'rgba(67, 97, 238, 0.6)'
+          },
+          {
+            label: currentLang === 'ar' ? 'السعرات المستهلكة' : 'Calories Consumed',
+            data: consumedData,
+            backgroundColor: 'rgba(239, 68, 68, 0.6)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+    const hasWorkoutToday = workoutsSnap.docs.some(doc => doc.data().date === today);
+    if (!hasWorkoutToday && new Date().getHours() > 18) {
+      showNotification(translations[currentLang].notificationInactive);
+    }
+  });
 }
 
 // --- المزامنة التلقائية ---
 function startAutoSync() {
-if (syncInterval) clearInterval(syncInterval);
-syncInterval = setInterval(() => {
-if (document.getElementById('dashboardTab').classList.contains('hidden')) return;
-loadDashboard();
-}, 30000); // كل 30 ثانية
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(() => {
+    if (document.getElementById('dashboardTab').classList.contains('hidden')) return;
+    loadDashboard();
+  }, 30000);
 }
 
 // --- تهيئة ---
