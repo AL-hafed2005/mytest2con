@@ -470,7 +470,7 @@ const translations = {
     stepTrackingReady: "🚶‍♂️ Ready to count steps... Start walking!",
     stepTrackingDenied: "❌ Motion sensor access denied",
     stepTrackingUnsupported: "⚠️ Your device doesn't support motion sensor",
-    calorieGoal: "Daily Calorie Goal",
+    calorieGoalLabel: "Daily Calorie Goal",
     exportData: "Export Data (CSV)",
     notificationOver: "⚠️ You exceeded your daily calories!",
     notificationInactive: "🏃‍♂️ You haven't worked out today! Don't miss your day.",
@@ -484,12 +484,12 @@ let startTime = null;
 let timerInterval = null;
 let distance = 0;
 let stepCount = 0;
-let lastStepTime = 0;
-let lastAcceleration = 0;
-let isStepTracking = false;
-let weeklyChart = null;
-let syncInterval = null;
-let dailyCalorieGoal = 2000;
+let lastPeakTime = 0;
+let accelerationHistory = [];
+const STEP_THRESHOLD = 1.8;
+const MIN_STEP_INTERVAL = 300;
+const MAX_STEP_INTERVAL = 1500;
+const HISTORY_SIZE = 10;
 
 // --- Firebase ---
 const firebaseConfig = {
@@ -504,7 +504,50 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// --- Step Detection Logic ---
+// --- Step Detection ---
+function handleStep(event) {
+  if (!workoutActive) return;
+  const accel = event.accelerationIncludingGravity;
+  if (!accel) return;
+
+  const currentAccel = Math.abs(accel.y || accel.z || 0);
+  const now = Date.now();
+
+  accelerationHistory.push({ time: now, value: currentAccel });
+  if (accelerationHistory.length > HISTORY_SIZE) {
+    accelerationHistory.shift();
+  }
+
+  if (accelerationHistory.length < 5) return;
+
+  const recent = accelerationHistory.slice(-5);
+  const mid = recent[2].value;
+  const isPeak = (
+    mid > recent[1].value &&
+    mid > recent[3].value &&
+    mid > STEP_THRESHOLD
+  );
+
+  if (isPeak && now - lastPeakTime > MIN_STEP_INTERVAL) {
+    setTimeout(() => {
+      if (!workoutActive) return;
+      const newAccel = Math.abs(window.lastAccel || 0);
+      if (newAccel < mid - 0.5) {
+        const stepTimeDelta = now - lastPeakTime;
+        if (stepTimeDelta >= MIN_STEP_INTERVAL && stepTimeDelta <= MAX_STEP_INTERVAL) {
+          stepCount++;
+          lastPeakTime = now;
+          distance = (stepCount * 0.75) / 1000;
+          document.getElementById('stepCountDisplay').innerText = stepCount;
+          document.getElementById('distanceDisplay').innerText = distance.toFixed(2);
+          document.getElementById('gpsStatus').innerText = `🚶‍♂️ الخطوات: ${stepCount}`;
+        }
+      }
+    }, 100);
+    window.lastAccel = currentAccel;
+  }
+}
+
 function startStepTracking() {
   if (typeof DeviceMotionEvent === 'undefined') {
     document.getElementById('gpsStatus').innerText = translations[currentLang].stepTrackingUnsupported;
@@ -512,81 +555,36 @@ function startStepTracking() {
   }
 
   if (typeof DeviceMotionEvent.requestPermission === 'function') {
-    DeviceMotionEvent.requestPermission()
-      .then(permissionState => {
-        if (permissionState === 'granted') {
-          enableStepListener();
-        } else {
-          document.getElementById('gpsStatus').innerText = translations[currentLang].stepTrackingDenied;
-        }
-      })
-      .catch(console.error);
+    DeviceMotionEvent.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        window.addEventListener('devicemotion', handleStep);
+      } else {
+        document.getElementById('gpsStatus').innerText = translations[currentLang].stepTrackingDenied;
+      }
+    }).catch(console.error);
   } else {
-    enableStepListener();
+    window.addEventListener('devicemotion', handleStep);
   }
 }
 
-function enableStepListener() {
-  isStepTracking = true;
-  document.getElementById('gpsStatus').innerText = translations[currentLang].stepTrackingReady;
-  window.addEventListener('devicemotion', handleMotion);
-}
-
-function handleMotion(event) {
-  if (!isStepTracking || !workoutActive) return;
-  
-  const accel = event.accelerationIncludingGravity;
-  if (!accel) return;
-  
-  const currentAccel = Math.abs(accel.y);
-  const now = Date.now();
-  const timeDelta = now - lastStepTime;
-
-  // ✅ منع الغش: تسارع كافٍ + وقت كافٍ بين الخطوات
-  if (currentAccel > 1.2 && timeDelta > 300) {
-    if (currentAccel > lastAcceleration) {
-      setTimeout(() => {
-        if (!isStepTracking) return;
-        const newAccel = Math.abs(window.lastCheckedAccel || currentAccel);
-        if (newAccel < currentAccel) {
-          stepCount++;
-          lastStepTime = now;
-          distance = (stepCount * 0.75) / 1000; // 0.75 متر/خطوة
-          document.getElementById('stepCountDisplay').innerText = stepCount;
-          document.getElementById('distanceDisplay').innerText = distance.toFixed(2);
-          document.getElementById('gpsStatus').innerText = `🚶‍♂️ ${translations[currentLang].steps}: ${stepCount}`;
-        }
-      }, 50);
-    }
-  }
-
-  window.lastCheckedAccel = currentAccel;
-  lastAcceleration = currentAccel;
-}
-
-// --- Activity Handling ---
+// --- Workout Flow ---
 function onActivityChange() {
-  const selectedActivity = document.getElementById('activityType').value;
-  const isStepBased = ['walking', 'running'].includes(selectedActivity);
+  const activity = document.getElementById('activityType').value;
+  const isStepBased = ['walking', 'running'].includes(activity);
   const gpsSection = document.getElementById('gpsSection');
-  if (isStepBased) {
-    gpsSection.classList.remove('hidden');
-  } else {
-    gpsSection.classList.add('hidden');
-  }
+  gpsSection.classList.toggle('hidden', !isStepBased);
 }
 
-// --- Workout Control ---
 function startWorkout() {
-  const selectedActivity = document.getElementById('activityType').value;
-  const isStepBased = ['walking', 'running'].includes(selectedActivity);
+  const activity = document.getElementById('activityType').value;
+  const isStepBased = ['walking', 'running'].includes(activity);
 
   workoutActive = true;
   startTime = Date.now();
   distance = 0;
   stepCount = 0;
-  lastStepTime = 0;
-  lastAcceleration = 0;
+  lastPeakTime = 0;
+  accelerationHistory = [];
 
   document.getElementById('distanceDisplay').innerText = '0.00';
   document.getElementById('stepCountDisplay').innerText = '0';
@@ -602,20 +600,22 @@ function startWorkout() {
   }, 1000);
 
   if (isStepBased) {
+    document.getElementById('gpsSection').classList.remove('hidden');
+    document.getElementById('gpsStatus').innerText = translations[currentLang].stepTrackingReady;
     startStepTracking();
+  } else {
+    document.getElementById('gpsSection').classList.add('hidden');
   }
 }
 
 function stopWorkout() {
   workoutActive = false;
-  isStepTracking = false;
   clearInterval(timerInterval);
-  window.removeEventListener('devicemotion', handleMotion);
+  window.removeEventListener('devicemotion', handleStep);
 
   const duration = Math.round((Date.now() - startTime) / 1000 / 60);
   const calories = Math.round(distance * 60);
   const activityType = document.getElementById('activityType').value;
-  const isStepBased = ['walking', 'running'].includes(activityType);
 
   db.collection('users').doc(currentUser.uid).collection('workouts').add({
     type: activityType,
@@ -634,7 +634,7 @@ function stopWorkout() {
   });
 }
 
-// --- باقي الدوال ---
+// --- باقي الدوال (بدون تغيير) ---
 function initTheme() {
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     document.body.setAttribute('data-theme', 'dark');
