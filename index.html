@@ -1,997 +1,841 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>FitTrack Pro</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-:root {
---primary: #4361ee;
---success: #06d6a0;
---danger: #ef4444;
---light: #f8f9fa;
---dark: #212529;
---bg: #f0f4f8;
---card: #ffffff;
-}
-[data-theme="dark"] {
---bg: #0f172a;
---card: #1e293b;
---light: #0f172a;
---dark: #f1f5f9;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-body {
-background-color: var(--bg);
-color: var(--dark);
-direction: rtl;
-transition: background-color 0.3s, color 0.3s;
-}
-body.en { direction: ltr; text-align: left; }
-/* ========== BEFORE LOGIN ========== */
-#preAuthSection {
-max-width: 400px;
-margin: 60px auto;
-padding: 30px;
-background: var(--card);
-border-radius: 20px;
-box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-text-align: center;
-}
-.app-logo {
-font-size: 3.5rem;
-color: var(--primary);
-margin-bottom: 20px;
-}
-.app-title {
-font-size: 1.8rem;
-font-weight: 800;
-color: var(--primary);
-margin-bottom: 25px;
-}
-.input-group {
-margin-bottom: 20px;
-text-align: right;
-}
-.input-group.en { text-align: left; }
-.input-group input {
-width: 100%;
-padding: 14px;
-border: 1px solid #4b5563;
-border-radius: 12px;
-font-size: 1rem;
-background: var(--card);
-color: var(--dark);
-}
-.auth-buttons {
-display: flex;
-gap: 12px;
-margin-top: 10px;
-}
-.auth-btn {
-flex: 1;
-padding: 12px;
-border: none;
-border-radius: 12px;
-font-weight: bold;
-cursor: pointer;
-font-size: 1rem;
-}
-.signup-btn { background: var(--primary); color: white; }
-.login-btn { background: #6c757d; color: white; }
-.auth-btn:hover { opacity: 0.9; }
-/* ========== AFTER LOGIN ========== */
-.top-nav {
-position: fixed;
-top: 0;
-left: 0;
-right: 0;
-background: var(--card);
-box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-padding: 0 15px;
-height: 60px;
-display: flex;
-align-items: center;
-justify-content: space-between;
-z-index: 1000;
-}
-.nav-icons {
-display: flex;
-gap: 28px;
-}
-.nav-icon {
-font-size: 1.4rem;
-color: #94a3b8;
-cursor: pointer;
-transition: color 0.2s;
-}
-.nav-icon.active, .nav-icon:hover {
-color: var(--primary);
-}
-.logo-icon {
-font-size: 1.8rem;
-color: var(--primary);
-}
-#appSection {
-padding-top: 70px;
-padding-bottom: 20px;
-}
-.container { max-width: 100%; padding: 0 15px; }
-.section {
-background: var(--card);
-padding: 22px;
-border-radius: 18px;
-margin-bottom: 22px;
-box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-}
-.hidden { display: none; }
-label { display: block; margin: 14px 0 8px; font-weight: 600; }
-input, select, button {
-width: 100%;
-padding: 13px;
-margin-bottom: 18px;
-border: 1px solid #4b5563;
-border-radius: 12px;
-font-size: 1rem;
-background: var(--card);
-color: var(--dark);
-}
-button {
-background: var(--primary);
-color: white;
-font-weight: bold;
-border: none;
-cursor: pointer;
-}
-.stats-grid {
-display: grid;
-grid-template-columns: repeat(2, 1fr);
-gap: 16px;
-margin: 20px 0;
-}
-.stat-card {
-background: #f8fafc;
-padding: 16px;
-border-radius: 14px;
-text-align: center;
-}
-[data-theme="dark"] .stat-card { background: #334155; }
-.stat-value { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
-.stat-label { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
-[data-theme="dark"] .stat-label { color: #cbd5e1; }
-canvas { max-height: 250px; margin-top: 20px; }
-.gps-status {
-text-align: center;
-padding: 10px;
-background: #e2e8f0;
-border-radius: 10px;
-margin: 15px 0;
-font-size: 0.9rem;
-}
-[data-theme="dark"] .gps-status { background: #334155; color: #f1f5f9; }
-.logout-btn {
-background: var(--danger);
-width: auto;
-padding: 10px 20px;
-margin-top: 10px;
-}
-.progress-bar {
-height: 10px;
-background: #e2e8f0;
-border-radius: 5px;
-margin: 10px 0;
-overflow: hidden;
-}
-[data-theme="dark"] .progress-bar { background: #334155; }
-.progress-fill {
-height: 100%;
-background: var(--primary);
-border-radius: 5px;
-transition: width 0.5s;
-}
-.calendar-grid {
-display: grid;
-grid-template-columns: repeat(7, 1fr);
-gap: 4px;
-margin: 15px 0;
-}
-.calendar-day {
-width: 36px;
-height: 36px;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 0.8rem;
-border-radius: 50%;
-}
-.calendar-day.active { background: var(--primary); color: white; }
-.calendar-day.inactive { background: #e2e8f0; }
-[data-theme="dark"] .calendar-day.inactive { background: #334155; color: #cbd5e1; }
-.export-btn {
-background: #06d6a0;
-margin-top: 15px;
-}
-@media (max-width: 600px) {
-.auth-buttons { flex-direction: column; }
-.nav-icons { gap: 20px; }
-.nav-icon { font-size: 1.25rem; }
-.stats-grid { grid-template-columns: 1fr; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>FitTrack Pro - نظام متكامل</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --primary: #4361ee;
+      --success: #06d6a0;
+      --danger: #ef4444;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --bg: #f0f4f8;
+      --card: #ffffff;
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --light: #0f172a;
+      --dark: #f1f5f9;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--dark);
+      direction: rtl;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 0 15px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+    }
+    .nav-icons {
+      display: flex;
+      gap: 28px;
+    }
+    .nav-icon {
+      font-size: 1.4rem;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .nav-icon.active, .nav-icon:hover {
+      color: var(--primary);
+    }
+    .logo-icon {
+      font-size: 1.8rem;
+      color: var(--primary);
+    }
+    #appSection {
+      padding-top: 70px;
+      padding-bottom: 20px;
+    }
+    .container { max-width: 480px; margin: 0 auto; padding: 0 15px; }
+    .section {
+      background: var(--card);
+      padding: 22px;
+      border-radius: 18px;
+      margin-bottom: 22px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .hidden { display: none; }
+    h2 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: var(--primary);
+      text-align: center;
+    }
+    .metric {
+      font-size: 26px;
+      font-weight: bold;
+      margin: 10px 0;
+      color: var(--primary);
+    }
+    .label {
+      color: #64748b;
+      font-size: 15px;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .coord {
+      font-family: monospace;
+      background: #f1f8ff;
+      padding: 10px;
+      border-radius: 10px;
+      margin: 10px 0;
+      direction: ltr;
+      text-align: center;
+      font-size: 15px;
+      border: 1px solid #dbeafe;
+    }
+    .gps-status {
+      padding: 10px;
+      border-radius: 10px;
+      margin: 12px 0;
+      text-align: center;
+      background: #f0f9ff;
+      color: #0c4a6e;
+      font-weight: bold;
+    }
+    [data-theme="dark"] .gps-status {
+      background: #1e293b;
+      color: #94a3b8;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .btn-start { background: #10b981; color: white; }
+    .btn-stop { background: #ef4444; color: white; }
+    .btn:disabled { opacity: 0.6; }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--dark);
+    }
+    #preAuthSection {
+      max-width: 400px;
+      margin: 60px auto;
+      padding: 30px;
+      background: var(--card);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .app-logo { font-size: 3.5rem; color: var(--primary); margin-bottom: 20px; }
+    .app-title { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 25px; }
+    .auth-buttons { display: flex; gap: 12px; margin-top: 10px; }
+    .auth-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .signup-btn { background: var(--primary); color: white; }
+    .login-btn { background: #6c757d; color: white; }
+    .progress-bar {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 5px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .progress-bar { background: #334155; }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 5px;
+      transition: width 0.5s;
+    }
+    #map { height: 250px; border-radius: 12px; margin: 15px 0; }
+    .share-btn {
+      background: #3b82f6;
+      margin-top: 15px;
+    }
+    .theme-toggle {
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      .auth-buttons { flex-direction: column; }
+      .nav-icons { gap: 20px; }
+    }
+  </style>
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="#"/>
+  <script>
+    // PWA Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      });
+    }
+  </script>
 </head>
-<body class="ar">
-<!-- ========== BEFORE LOGIN ========== -->
-<div id="preAuthSection">
-<div class="app-logo">
-<i class="fas fa-dumbbell"></i>
-</div>
-<h1 class="app-title">FitTrack Pro</h1>
-<div class="input-group" id="inputGroup">
-<input type="text" id="usernameInput" placeholder="اسم المستخدم" />
-<input type="password" id="passwordInput" placeholder="كلمة المرور" />
-</div>
-<div class="auth-buttons">
-<button class="auth-btn signup-btn" onclick="handleAuth(true)">إنشاء حساب</button>
-<button class="auth-btn login-btn" onclick="handleAuth(false)">تسجيل الدخول</button>
-</div>
-</div>
-<!-- ========== AFTER LOGIN ========== -->
-<nav id="topNav" class="top-nav hidden">
-<div class="nav-icons">
-<i class="nav-icon fas fa-home active" data-tab="dashboard"></i>
-<i class="nav-icon fas fa-running" data-tab="workouts"></i>
-<i class="nav-icon fas fa-utensils" data-tab="nutrition"></i>
-<i class="nav-icon fas fa-cog" data-tab="profile"></i>
-</div>
-<div class="logo-icon">
-<i class="fas fa-dumbbell"></i>
-</div>
-</nav>
-<div id="appSection" class="hidden">
-<div class="container">
-<!-- Dashboard Tab -->
-<div id="dashboardTab" class="tab-content">
-<div class="section">
-<h2 id="dashboardTitle">لوحة التحكم التحليلية</h2>
-<!-- هدف السعرات اليومي -->
-<div style="margin: 20px 0;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-<span id="calorieGoalLabel">الهدف اليومي من السعرات</span>
-<span id="calorieProgressText">0/2000</span>
-</div>
-<div class="progress-bar">
-<div class="progress-fill" id="calorieProgressBar" style="width: 0%;"></div>
-</div>
-</div>
-<!-- هدف الخطوات اليومي -->
-<div style="margin: 20px 0;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-<span id="stepGoalLabel">الهدف اليومي من الخطوات</span>
-<span id="stepProgressText">0/10000</span>
-</div>
-<div class="progress-bar">
-<div class="progress-fill" id="stepProgressBar" style="width: 0%;"></div>
-</div>
-</div>
-<div class="stats-grid">
-<div class="stat-card">
-<div class="stat-value" id="caloriesBurned">0</div>
-<div class="stat-label" id="caloriesBurnedLabel">السعرات المحروقة</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="caloriesConsumed">0</div>
-<div class="stat-label" id="caloriesConsumedLabel">السعرات المستهلكة</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="netCalories">0</div>
-<div class="stat-label" id="netCaloriesLabel">الرصيد (المحروقة - المستهلكة)</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="daysGoalMet">0/7</div>
-<div class="stat-label" id="daysGoalMetLabel">أيام تحقيق الهدف (أسبوعي)</div>
-</div>
-</div>
-<!-- تقويم النشاط -->
-<h3 style="margin: 20px 0;">تقويم النشاط (آخر 14 يومًا)</h3>
-<div class="calendar-grid" id="activityCalendar"></div>
-<h3 style="margin: 20px 0;">النشاط الأسبوعي</h3>
-<canvas id="weeklyChart"></canvas>
-<!-- زر التصدير -->
-<button class="export-btn" onclick="exportData()">تصدير البيانات (CSV)</button>
-</div>
-</div>
+<body>
+  <!-- زر تبديل الوضع -->
+  <button class="theme-toggle" id="themeToggle">
+    <i class="fas fa-moon"></i>
+  </button>
 
-<!-- ========== WORKOUTS TAB (النسخة المبسطة المطلوبة) ========== -->
-<div id="workoutsTab" class="tab-content hidden">
-  <div class="section">
-    <h2 id="workoutsTitle">نظام التتبع الهجين</h2>
-    
-    <div class="label">المسافة المقطوعة</div>
-    <div class="metric-value" id="distance" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0.00 م</div>
-
-    <div class="label">عدد الخطوات</div>
-    <div class="metric-value" id="steps" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0</div>
-
-    <div class="label">وضع النظام</div>
-    <div id="mode" class="gps-status">جاهز للبدء</div>
-
-    <div class="label">خط العرض</div>
-    <div class="coord" id="lat">—</div>
-
-    <div class="label">خط الطول</div>
-    <div class="coord" id="lng">—</div>
-
-    <div id="gpsStatus" class="gps-status">اضغط "ابدأ التتبع" لتفعيل النظام الهجين</div>
-
-    <button id="startBtn" class="btn" style="background: #10b981; color: white;">ابدأ التتبع</button>
-    <button id="stopBtn" class="btn" style="background: #ef4444; color: white;" disabled>إيقاف</button>
+  <!-- شاشة تسجيل الدخول -->
+  <div id="preAuthSection">
+    <div class="app-logo"><i class="fas fa-dumbbell"></i></div>
+    <h1 class="app-title">FitTrack Pro</h1>
+    <div class="input-group">
+      <input type="text" id="usernameInput" placeholder="اسم المستخدم" />
+      <input type="password" id="passwordInput" placeholder="كلمة المرور" />
+    </div>
+    <div class="auth-buttons">
+      <button class="auth-btn signup-btn" onclick="handleAuth(true)">إنشاء حساب</button>
+      <button class="auth-btn login-btn" onclick="handleAuth(false)">تسجيل الدخول</button>
+    </div>
   </div>
-</div>
 
-<!-- Nutrition Tab -->
-<div id="nutritionTab" class="tab-content hidden">
-<div class="section">
-<h2 id="nutritionTitle">تسجيل التغذية</h2>
-<label id="mealLabel">الوجبة</label>
-<select id="mealType">
-<option value="breakfast">فطور</option>
-<option value="lunch">غداء</option>
-<option value="dinner">عشاء</option>
-<option value="snack">وجبة خفيفة</option>
-</select>
-<input type="text" id="foodItem" placeholder="اسم الطعام" />
-<input type="number" id="caloriesInput" placeholder="السعرات الحرارية" min="0" />
-<input type="number" id="proteinInput" placeholder="البروتين (غ)" min="0" step="0.1" />
-<input type="number" id="carbsInput" placeholder="الكربوهيدرات (غ)" min="0" step="0.1" />
-<input type="number" id="fatsInput" placeholder="الدهون (غ)" min="0" step="0.1" />
-<button onclick="saveNutrition()">حفظ الوجبة</button>
-<div id="nutritionList" style="margin-top: 20px;"></div>
-</div>
-</div>
-<!-- Profile Tab -->
-<div id="profileTab" class="tab-content hidden">
-<div class="section">
-<h2 id="profileTitle">المعلومات الشخصية</h2>
-<label id="ageLabel">العمر</label>
-<input type="number" id="ageInput" min="10" max="100" />
-<label id="weightLabel">الوزن (كغ)</label>
-<input type="number" id="weightInput" min="30" max="200" step="0.1" />
-<label id="heightLabel">الطول (سم)</label>
-<input type="number" id="heightInput" min="100" max="250" />
-<label id="goalLabel">الهدف</label>
-<select id="goalInput">
-<option value="lose">إنقاص الوزن</option>
-<option value="gain">زيادة العضلات</option>
-<option value="maintain">الحفاظ على الوزن</option>
-</select>
-<label>السعرات اليومية المستهدفة</label>
-<input type="number" id="calorieGoalInput" min="1000" max="5000" placeholder="2000" />
-<label id="stepGoalLabelProf">الهدف اليومي من الخطوات</label>
-<input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
-<button onclick="saveProfile()">حفظ المعلومات</button>
-<div class="user-info" id="userInfo" style="margin: 15px 0; font-weight: 600;"></div>
-<button class="logout-btn" onclick="logout()">تسجيل خروج</button>
-</div>
-</div>
-</div>
-</div>
-<script>
-// --- الترجمات ---
-const translations = {
-ar: {
-appTitle: "FitTrack Pro",
-username: "اسم المستخدم",
-password: "كلمة المرور",
-signup: "إنشاء حساب",
-login: "تسجيل الدخول",
-dashboardTitle: "لوحة التحكم التحليلية",
-caloriesBurned: "السعرات المحروقة",
-caloriesConsumed: "السعرات المستهلكة",
-netCalories: "الرصيد (المحروقة - المستهلكة)",
-daysGoalMet: "أيام تحقيق الهدف (أسبوعي)",
-workoutsTitle: "نظام التتبع الهجين",
-nutritionTitle: "تسجيل التغذية",
-profileTitle: "المعلومات الشخصية",
-walking: "مشي",
-running: "ركض",
-cycling: "ركوب دراجة",
-weights: "رفع أثقال",
-time: "الوقت",
-distance: "المسافة (كم)",
-steps: "الخطوات",
-start: "بدء التمرين",
-stop: "إنهاء",
-meal: "الوجبة",
-foodItem: "اسم الطعام",
-calories: "السعرات الحرارية",
-protein: "البروتين (غ)",
-carbs: "الكربوهيدرات (غ)",
-fats: "الدهون (غ)",
-saveMeal: "حفظ الوجبة",
-age: "العمر",
-weight: "الوزن (كغ)",
-height: "الطول (سم)",
-goal: "الهدف",
-saveProfile: "حفظ المعلومات",
-logout: "تسجيل خروج",
-breakfast: "فطور",
-lunch: "غداء",
-dinner: "عشاء",
-snack: "وجبة خفيفة",
-lose: "إنقاص الوزن",
-gain: "زيادة العضلات",
-maintain: "الحفاظ على الوزن",
-gpsActive: "✅ GPS نشط — تتبع المسار...",
-gpsDenied: "❌ لم يتم منح إذن الموقع",
-gpsError: "⚠️ خطأ في GPS — التتبع غير متاح",
-stepTrackingReady: "🚶‍♂️ جاهز لعدّ الخطوات...",
-calorieGoalLabel: "الهدف اليومي من السعرات",
-stepGoalLabel: "الهدف اليومي من الخطوات",
-exportData: "تصدير البيانات (CSV)",
-notificationOver: "⚠️ تجاوزت سعراتك اليومية!",
-notificationInactive: "🏃‍♂️ لم تتمرن اليوم! لا تفوت يومك.",
-notificationStepGoal: "🎉 مبارك! حققت هدفك اليومي من الخطوات!",
-darkMode: "الوضع الليلي",
-lightMode: "الوضع النهاري"
-},
-en: {
-appTitle: "FitTrack Pro",
-username: "Username",
-password: "Password",
-signup: "Sign Up",
-login: "Login",
-dashboardTitle: "Analytical Dashboard",
-caloriesBurned: "Calories Burned",
-caloriesConsumed: "Calories Consumed",
-netCalories: "Net Calories (Burned - Consumed)",
-daysGoalMet: "Goal Days Met (Weekly)",
-workoutsTitle: "Hybrid Tracking System",
-nutritionTitle: "Log Nutrition",
-profileTitle: "Personal Profile",
-walking: "Walking",
-running: "Running",
-cycling: "Cycling",
-weights: "Weight Lifting",
-time: "Time",
-distance: "Distance (km)",
-steps: "Steps",
-start: "Start Workout",
-stop: "Stop",
-meal: "Meal",
-foodItem: "Food Item",
-calories: "Calories",
-protein: "Protein (g)",
-carbs: "Carbs (g)",
-fats: "Fats (g)",
-saveMeal: "Save Meal",
-age: "Age",
-weight: "Weight (kg)",
-height: "Height (cm)",
-goal: "Goal",
-saveProfile: "Save Profile",
-logout: "Logout",
-breakfast: "Breakfast",
-lunch: "Lunch",
-dinner: "Dinner",
-snack: "Snack",
-lose: "Lose Weight",
-gain: "Gain Muscle",
-maintain: "Maintain Weight",
-gpsActive: "✅ GPS Active — Tracking...",
-gpsDenied: "❌ Location permission denied",
-gpsError: "⚠️ GPS Error — Tracking unavailable",
-stepTrackingReady: "🚶‍♂️ Ready to count steps...",
-calorieGoalLabel: "Daily Calorie Goal",
-stepGoalLabel: "Daily Step Goal",
-exportData: "Export Data (CSV)",
-notificationOver: "⚠️ You exceeded your daily calories!",
-notificationInactive: "🏃‍♂️ You haven't worked out today! Don't miss your day.",
-notificationStepGoal: "🎉 Congratulations! You've reached your daily step goal!",
-darkMode: "Dark Mode",
-lightMode: "Light Mode"
-}
-};
-let currentLang = 'ar';
-let currentUser = null;
-let workoutActive = false;
-let totalDistance = 0;
-let stepCount = 0;
-let lastGpsPosition = null;
-let lastGpsTime = 0;
-let lastAccel = 0;
-let lastStepTime = 0;
-let isGpsAvailable = false;
-let gpsTimeout = 0;
-let dailyCalorieGoal = 2000;
-let dailyStepGoal = 10000; // ⬅️ هدف الخطوات الافتراضي
-let weeklyChart = null;
-let syncInterval = null;
+  <!-- شريط التنقل -->
+  <nav id="topNav" class="top-nav hidden">
+    <div class="nav-icons">
+      <i class="nav-icon fas fa-home active" data-tab="dashboard"></i>
+      <i class="nav-icon fas fa-running" data-tab="workouts"></i>
+      <i class="nav-icon fas fa-utensils" data-tab="nutrition"></i>
+      <i class="nav-icon fas fa-cog" data-tab="profile"></i>
+    </div>
+    <div class="logo-icon"><i class="fas fa-dumbbell"></i></div>
+  </nav>
 
-// --- Firebase ---
-const firebaseConfig = {
-apiKey: "AIzaSyC1ps0XFVjJJ1YAi2H0XEtjAc-wslWrNjo",
-authDomain: "ddccdc-c6a58.firebaseapp.com",
-projectId: "ddccdc-c6a58",
-storageBucket: "ddccdc-c6a58.firebasestorage.app",
-messagingSenderId: "339966933373",
-appId: "1:339966933373:web:b638ece3460e6c7a7c7414"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+  <!-- المحتوى الرئيسي -->
+  <div id="appSection" class="hidden">
+    <div class="container">
+      <!-- لوحة التحكم -->
+      <div id="dashboardTab" class="tab-content">
+        <div class="section">
+          <h2>لوحة التحكم التحليلية</h2>
+          
+          <!-- أهداف -->
+          <div style="margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>الهدف اليومي من الخطوات</span>
+              <span id="stepProgressText">0/10000</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="stepProgressBar" style="width: 0%;"></div>
+            </div>
+          </div>
+          
+          <div style="margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>الهدف الأسبوعي من المسافة</span>
+              <span id="distanceProgressText">0/35 كم</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="distanceProgressBar" style="width: 0%;"></div>
+            </div>
+          </div>
+          
+          <!-- الإحصائيات -->
+          <canvas id="stepsChart" height="150"></canvas>
+          <canvas id="distanceChart" height="150" style="margin-top: 20px;"></canvas>
+          
+          <!-- زر المشاركة -->
+          <button class="btn share-btn" onclick="shareAchievement()">
+            <i class="fas fa-share-alt"></i> مشاركة إنجازي
+          </button>
+        </div>
+      </div>
 
-// --- إشعارات ---
-function showNotification(message) {
-if (Notification.permission === "granted") {
-new Notification(message);
-} else if (Notification.permission !== "denied") {
-Notification.requestPermission().then(permission => {
-if (permission === "granted") {
-new Notification(message);
-}
-});
-}
-}
+      <!-- تبويب التمارين -->
+      <div id="workoutsTab" class="tab-content hidden">
+        <div class="section">
+          <h2>نظام التتبع الهجين</h2>
+          
+          <div class="label">المسافة المقطوعة</div>
+          <div class="metric" id="distance">0.00 م</div>
 
-// --- دعم الوضع الليلي ---
-function initTheme() {
-if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-document.body.setAttribute('data-theme', 'dark');
-}
-}
+          <div class="label">عدد الخطوات</div>
+          <div class="metric" id="steps">0</div>
 
-// --- وظائف اللغة ---
-function updateUI() {
-const t = translations[currentLang];
-document.querySelector('.app-title').innerText = t.appTitle;
-document.getElementById('usernameInput').placeholder = t.username;
-document.getElementById('passwordInput').placeholder = t.password;
-document.querySelector('.signup-btn').innerText = t.signup;
-document.querySelector('.login-btn').innerText = t.login;
-document.getElementById('inputGroup').className = `input-group${currentLang === 'en' ? ' en' : ''}`;
-document.getElementById('dashboardTitle').innerText = t.dashboardTitle;
-document.getElementById('caloriesBurnedLabel').innerText = t.caloriesBurned;
-document.getElementById('caloriesConsumedLabel').innerText = t.caloriesConsumed;
-document.getElementById('netCaloriesLabel').innerText = t.netCalories;
-document.getElementById('daysGoalMetLabel').innerText = t.daysGoalMet;
-document.getElementById('calorieGoalLabel').innerText = t.calorieGoalLabel;
-document.getElementById('stepGoalLabel').innerText = t.stepGoalLabel;
-document.querySelector('.export-btn').innerText = t.exportData;
-document.getElementById('workoutsTitle').innerText = t.workoutsTitle;
-document.getElementById('nutritionTitle').innerText = t.nutritionTitle;
-document.getElementById('mealLabel').innerText = t.meal;
-document.getElementById('foodItem').placeholder = t.foodItem;
-document.getElementById('caloriesInput').placeholder = t.calories;
-document.getElementById('proteinInput').placeholder = t.protein;
-document.getElementById('carbsInput').placeholder = t.carbs;
-document.getElementById('fatsInput').placeholder = t.fats;
-document.querySelector('button[onclick="saveNutrition()"]').innerText = t.saveMeal;
-const mealSel = document.getElementById('mealType');
-if (mealSel) {
-mealSel.options[0].text = t.breakfast;
-mealSel.options[1].text = t.lunch;
-mealSel.options[2].text = t.dinner;
-mealSel.options[3].text = t.snack;
-}
-document.getElementById('profileTitle').innerText = t.profileTitle;
-document.getElementById('ageLabel').innerText = t.age;
-document.getElementById('weightLabel').innerText = t.weight;
-document.getElementById('heightLabel').innerText = t.height;
-document.getElementById('goalLabel').innerText = t.goal;
-document.getElementById('stepGoalLabelProf').innerText = t.stepGoalLabel;
-document.querySelector('button[onclick="saveProfile()"]').innerText = t.saveProfile;
-const goalSel = document.getElementById('goalInput');
-if (goalSel) {
-goalSel.options[0].text = t.lose;
-goalSel.options[1].text = t.gain;
-goalSel.options[2].text = t.maintain;
-}
-}
+          <div class="label">وضع النظام</div>
+          <div id="mode" class="gps-status">جاهز للبدء</div>
 
-// --- التنقل ---
-function showTab(tabName) {
-document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-document.querySelectorAll('.nav-icon').forEach(el => el.classList.remove('active'));
-document.getElementById(tabName + 'Tab').classList.remove('hidden');
-document.querySelector(`.nav-icon[data-tab="${tabName}"]`).classList.add('active');
-if (tabName === 'dashboard' && currentUser) {
-loadDashboard();
-startAutoSync();
-}
-if (tabName === 'nutrition' && currentUser) loadNutritionList();
-if (tabName === 'profile' && currentUser) loadProfile();
-}
-document.querySelectorAll('.nav-icon').forEach(icon => {
-icon.addEventListener('click', () => {
-showTab(icon.getAttribute('data-tab'));
-});
-});
+          <div class="label">خط العرض</div>
+          <div class="coord" id="lat">—</div>
 
-// --- Auth ---
-function handleAuth(isSignup) {
-const username = document.getElementById('usernameInput').value.trim();
-const password = document.getElementById('passwordInput').value;
-if (!username || password.length < 6) return alert('Password too short (min 6)');
-const email = `${username}@example.com`;
-(isSignup ?
-auth.createUserWithEmailAndPassword(email, password) :
-auth.signInWithEmailAndPassword(email, password)
-)
-.then(async (userCredential) => {
-if (isSignup) {
-await userCredential.user.updateProfile({ displayName: username });
-await db.collection('users').doc(userCredential.user.uid).set({
-username,
-createdAt: firebase.firestore.FieldValue.serverTimestamp()
-});
-}
-currentUser = userCredential.user;
-document.getElementById('preAuthSection').classList.add('hidden');
-document.getElementById('topNav').classList.remove('hidden');
-document.getElementById('appSection').classList.remove('hidden');
-updateUI();
-showTab('dashboard');
-})
-.catch(err => {
-alert('Error: ' + err.message);
-});
-}
-function logout() {
-auth.signOut().then(() => {
-currentUser = null;
-document.getElementById('preAuthSection').classList.remove('hidden');
-document.getElementById('topNav').classList.add('hidden');
-document.getElementById('appSection').classList.add('hidden');
-document.getElementById('usernameInput').value = '';
-document.getElementById('passwordInput').value = '';
-if (syncInterval) clearInterval(syncInterval);
-});
-}
+          <div class="label">خط الطول</div>
+          <div class="coord" id="lng">—</div>
 
-// === === النظام الهجين للتمارين === ===
-const distanceEl = document.getElementById('distance');
-const stepsEl = document.getElementById('steps');
-const latEl = document.getElementById('lat');
-const lngEl = document.getElementById('lng');
-const modeEl = document.getElementById('mode');
-const gpsStatusEl = document.getElementById('gpsStatus');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
+          <div id="gpsStatus" class="gps-status">اضغط "ابدأ التتبع" لتفعيل النظام الهجين</div>
 
-const STEP_THRESHOLD = 1.7;
-const MIN_STEP_INTERVAL = 400;
-const GPS_TIMEOUT_MS = 5000;
-const AVG_STEP_LENGTH = 0.75;
+          <!-- خريطة المسار -->
+          <div id="map"></div>
 
-function handleMotion(event) {
-  if (!workoutActive) return;
-  const acc = event.accelerationIncludingGravity;
-  if (!acc) return;
+          <button id="startBtn" class="btn btn-start">ابدأ التتبع</button>
+          <button id="stopBtn" class="btn btn-stop" disabled>إيقاف</button>
+        </div>
+      </div>
 
-  const now = Date.now();
-  const accel = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-  const delta = Math.abs(accel - lastAccel);
-  lastAccel = accel;
+      <!-- التغذية -->
+      <div id="nutritionTab" class="tab-content hidden">
+        <div class="section">
+          <h2>تسجيل الوجبات</h2>
+          <select id="mealType">
+            <option value="breakfast">فطور</option>
+            <option value="lunch">غداء</option>
+            <option value="dinner">عشاء</option>
+            <option value="snack">وجبة خفيفة</option>
+          </select>
+          <input type="text" id="foodItem" placeholder="اسم الطعام" />
+          <input type="number" id="caloriesInput" placeholder="السعرات الحرارية" min="0" />
+          <button class="btn" onclick="saveNutrition()">حفظ الوجبة</button>
+          <div id="nutritionList" style="margin-top:20px;"></div>
+        </div>
+      </div>
 
-  if (delta > STEP_THRESHOLD && (now - lastStepTime) > MIN_STEP_INTERVAL) {
-    stepCount++;
-    stepsEl.textContent = stepCount;
-    totalDistance += AVG_STEP_LENGTH;
-    updateDistanceDisplay();
-    lastStepTime = now;
+      <!-- الملف الشخصي -->
+      <div id="profileTab" class="tab-content hidden">
+        <div class="section">
+          <h2>الإعدادات والتخصيص</h2>
+          
+          <label>الاسم</label>
+          <input type="text" id="displayNameInput" placeholder="اسم العرض" />
+          
+          <label>الوزن (كغ)</label>
+          <input type="number" id="weightInput" min="30" max="200" step="0.1" />
+          
+          <label>طول الخطوة (م)</label>
+          <input type="number" id="stepLengthInput" min="0.3" max="1.2" step="0.01" placeholder="0.75" />
+          
+          <label>الوحدة المفضلة</label>
+          <select id="unitPreference">
+            <option value="km">كيلومتر</option>
+            <option value="mile">ميل</option>
+          </select>
+          
+          <label>الهدف اليومي من الخطوات</label>
+          <input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
+          
+          <label>الهدف الأسبوعي من المسافة (كم)</label>
+          <input type="number" id="weeklyDistanceGoal" min="5" max="100" placeholder="35" />
+          
+          <button class="btn" onclick="saveSettings()">حفظ الإعدادات</button>
+          <button class="btn" style="background:#64748b; margin-top:20px;" onclick="exportAllData()">تصدير جميع البيانات</button>
+          <button class="btn" style="background:#ef4444; margin-top:10px;" onclick="logout()">تسجيل خروج</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    if (!isGpsAvailable || (now - lastGpsTime) > GPS_TIMEOUT_MS) {
-      modeEl.textContent = '🚶 وضع الداخِل (PDR)';
-      modeEl.style.color = '#ea580c';
-      modeEl.style.background = '#ffedd5';
+  <script>
+    // === المتغيرات الأساسية ===
+    let currentLang = 'ar';
+    let currentUser = null;
+    let workoutActive = false;
+    let totalDistance = 0;
+    let stepCount = 0;
+    let lastGpsPosition = null;
+    let lastGpsTime = 0;
+    let lastAccel = 0;
+    let lastStepTime = 0;
+    let isGpsAvailable = false;
+    let gpsTimeout = 0;
+    let positions = [];
+    let map = null;
+    let polyline = null;
+    let stepsChart = null;
+    let distanceChart = null;
+
+    // === الإعدادات الافتراضية ===
+    let settings = {
+      weight: 75,
+      stepLength: 0.75,
+      unit: 'km',
+      stepGoal: 10000,
+      weeklyDistanceGoal: 35
+    };
+
+    // === Firebase ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyC1ps0XFVjJJ1YAi2H0XEtjAc-wslWrNjo",
+      authDomain: "ddccdc-c6a58.firebaseapp.com",
+      projectId: "ddccdc-c6a58",
+      storageBucket: "ddccdc-c6a58.firebasestorage.app",
+      messagingSenderId: "339966933373",
+      appId: "1:339966933373:web:b638ece3460e6c7a7c7414"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // === عناصر الواجهة ===
+    const distanceEl = document.getElementById('distance');
+    const stepsEl = document.getElementById('steps');
+    const latEl = document.getElementById('lat');
+    const lngEl = document.getElementById('lng');
+    const modeEl = document.getElementById('mode');
+    const gpsStatusEl = document.getElementById('gpsStatus');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const themeToggle = document.getElementById('themeToggle');
+
+    // === الثوابت ===
+    const STEP_THRESHOLD = 1.7;
+    const MIN_STEP_INTERVAL = 400;
+    const GPS_TIMEOUT_MS = 5000;
+
+    // === تهيئة الخريطة ===
+    function initMap() {
+      if (!map) {
+        map = L.map('map').setView([33.234567, 44.123456], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+        polyline = L.polyline([], {color: '#4361ee'}).addTo(map);
+      }
     }
-  }
-}
 
-function updateGps() {
-  if (!workoutActive) return;
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude, accuracy } = pos.coords;
+    // === النظام الهجين للتمارين ===
+    function handleMotion(event) {
+      if (!workoutActive) return;
+      const acc = event.accelerationIncludingGravity;
+      if (!acc) return;
+
       const now = Date.now();
-      latEl.textContent = latitude.toFixed(7);
-      lngEl.textContent = longitude.toFixed(7);
-      lastGpsPosition = { lat: latitude, lng: longitude };
-      lastGpsTime = now;
-      isGpsAvailable = true;
-      gpsTimeout = 0;
-      modeEl.textContent = '🛰️ وضع الخارِج (GPS + PDR)';
-      modeEl.style.color = '#1d4ed8';
-      modeEl.style.background = '#dbeafe';
-      gpsStatusEl.textContent = `دقة GPS: ${accuracy.toFixed(1)} م`;
-    },
-    (error) => {
+      const accel = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+      const delta = Math.abs(accel - lastAccel);
+      lastAccel = accel;
+
+      if (delta > STEP_THRESHOLD && (now - lastStepTime) > MIN_STEP_INTERVAL) {
+        stepCount++;
+        stepsEl.textContent = stepCount;
+        totalDistance += settings.stepLength;
+        updateDistanceDisplay();
+        lastStepTime = now;
+
+        if (!isGpsAvailable || (now - lastGpsTime) > GPS_TIMEOUT_MS) {
+          modeEl.textContent = '🚶 وضع الداخِل (PDR)';
+          modeEl.style.color = '#ea580c';
+          modeEl.style.background = '#ffedd5';
+        }
+      }
+    }
+
+    function updateGps() {
+      if (!workoutActive) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const now = Date.now();
+          latEl.textContent = latitude.toFixed(7);
+          lngEl.textContent = longitude.toFixed(7);
+          
+          // تحديث الخريطة
+          if (map) {
+            map.setView([latitude, longitude], 15);
+            positions.push([latitude, longitude]);
+            polyline.setLatLngs(positions);
+            if (positions.length === 1) map.fitBounds(polyline.getBounds());
+          }
+          
+          if (lastGpsPosition) {
+            const d = haversineDistance(lastGpsPosition[0], lastGpsPosition[1], latitude, longitude);
+            totalDistance += d * 1000; // تحويل إلى أمتار
+            updateDistanceDisplay();
+          }
+          lastGpsPosition = [latitude, longitude];
+          lastGpsTime = now;
+          isGpsAvailable = true;
+          gpsTimeout = 0;
+          modeEl.textContent = '🛰️ وضع الخارِج (GPS + PDR)';
+          modeEl.style.color = '#1d4ed8';
+          modeEl.style.background = '#dbeafe';
+          gpsStatusEl.textContent = `دقة GPS: ${accuracy.toFixed(1)} م`;
+        },
+        (error) => {
+          isGpsAvailable = false;
+          gpsTimeout += 2000;
+          if (gpsTimeout > GPS_TIMEOUT_MS) {
+            modeEl.textContent = '🚶 وضع الداخِل (PDR فقط)';
+            modeEl.style.color = '#ea580c';
+            modeEl.style.background = '#ffedd5';
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    }
+
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function updateDistanceDisplay() {
+      if (settings.unit === 'mile') {
+        const miles = totalDistance / 1609.34;
+        distanceEl.textContent = miles >= 1 ? miles.toFixed(2) + ' ميل' : (miles * 1000).toFixed(1) + ' قدم';
+      } else {
+        distanceEl.textContent = totalDistance >= 1000 
+          ? (totalDistance / 1000).toFixed(3) + ' كم' 
+          : totalDistance.toFixed(1) + ' م';
+      }
+    }
+
+    function startWorkout() {
+      if (!navigator.geolocation) {
+        gpsStatusEl.textContent = '❌ الموقع غير مدعوم';
+        return;
+      }
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(permission => {
+          if (permission === 'granted') initWorkout();
+          else gpsStatusEl.textContent = '❌ رُفض الوصول إلى الحساس';
+        });
+      } else {
+        initWorkout();
+      }
+    }
+
+    function initWorkout() {
+      workoutActive = true;
+      totalDistance = 0;
+      stepCount = 0;
+      lastGpsPosition = null;
       isGpsAvailable = false;
-      gpsTimeout += 2000;
-      if (gpsTimeout > GPS_TIMEOUT_MS) {
-        modeEl.textContent = '🚶 وضع الداخِل (PDR فقط)';
-        modeEl.style.color = '#ea580c';
-        modeEl.style.background = '#ffedd5';
-      }
-    },
-    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-  );
-}
+      gpsTimeout = 0;
+      positions = [];
 
-function updateDistanceDisplay() {
-  if (totalDistance >= 1000) {
-    distanceEl.textContent = (totalDistance / 1000).toFixed(3) + ' كم';
-  } else {
-    distanceEl.textContent = totalDistance.toFixed(1) + ' م';
-  }
-  // تحديث السعرات باستخدام الوزن إذا متوفر
-  db.collection('users').doc(currentUser.uid).get().then(doc => {
-    const weight = doc.exists ? (doc.data().weight || 75) : 75;
-    const calories = Math.round((totalDistance / 1000) * weight * 0.78);
-    document.getElementById('caloriesBurned').innerText = calories;
-  }).catch(() => {
-    document.getElementById('caloriesBurned').innerText = Math.round((totalDistance / 1000) * 60);
-  });
-}
+      distanceEl.textContent = '0.00 م';
+      stepsEl.textContent = '0';
+      latEl.textContent = '—';
+      lngEl.textContent = '—';
+      modeEl.textContent = 'جاري التفعيل...';
+      gpsStatusEl.textContent = '✅ النظام نشط — يعمل في الداخل والخارج';
 
-function startWorkout() {
-  if (!navigator.geolocation) {
-    gpsStatusEl.textContent = '❌ الموقع غير مدعوم';
-    return;
-  }
-  if (typeof DeviceMotionEvent.requestPermission === 'function') {
-    DeviceMotionEvent.requestPermission().then(permission => {
-      if (permission === 'granted') initWorkout();
-      else gpsStatusEl.textContent = '❌ رُفض الوصول إلى الحساس';
-    });
-  } else {
-    initWorkout();
-  }
-}
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
 
-function initWorkout() {
-  workoutActive = true;
-  totalDistance = 0;
-  stepCount = 0;
-  lastGpsPosition = null;
-  isGpsAvailable = false;
-  gpsTimeout = 0;
+      // تهيئة الخريطة
+      initMap();
+      map.invalidateSize();
 
-  distanceEl.textContent = '0.00 م';
-  stepsEl.textContent = '0';
-  latEl.textContent = '—';
-  lngEl.textContent = '—';
-  modeEl.textContent = 'جاري التفعيل...';
-  gpsStatusEl.textContent = '✅ النظام نشط — يعمل في الداخل والخارج';
-
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-
-  window.addEventListener('devicemotion', handleMotion);
-  updateGps();
-  setInterval(updateGps, 2000);
-}
-
-function stopWorkout() {
-  workoutActive = false;
-  window.removeEventListener('devicemotion', handleMotion);
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-
-  const finalDistanceKm = totalDistance / 1000;
-  db.collection('users').doc(currentUser.uid).get().then(userDoc => {
-    const weight = userDoc.data()?.weight || 75;
-    const calories = Math.round(finalDistanceKm * weight * 0.78);
-
-    db.collection('users').doc(currentUser.uid).collection('workouts').add({
-      type: 'walking',
-      distance: parseFloat(finalDistanceKm.toFixed(3)),
-      calories,
-      steps: stepCount,
-      date: new Date().toISOString().split('T')[0],
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-      gpsStatusEl.textContent = `⏹️ تم الحفظ: ${stepCount} خطوة | ${totalDistance >= 1000 ? (totalDistance/1000).toFixed(3) : totalDistance.toFixed(1)} ${totalDistance >= 1000 ? 'كم' : 'م'}`;
-      loadDashboard();
-    });
-  });
-}
-
-startBtn.addEventListener('click', startWorkout);
-stopBtn.addEventListener('click', stopWorkout);
-
-// --- التغذية ---
-function saveNutrition() {
-  const food = document.getElementById('foodItem').value.trim();
-  const calories = parseFloat(document.getElementById('caloriesInput').value) || 0;
-  const protein = parseFloat(document.getElementById('proteinInput').value) || 0;
-  const carbs = parseFloat(document.getElementById('carbsInput').value) || 0;
-  const fats = parseFloat(document.getElementById('fatsInput').value) || 0;
-  const meal = document.getElementById('mealType').value;
-  if (!food) return alert('أدخل اسم الطعام');
-  db.collection('users').doc(currentUser.uid).collection('nutrition').add({
-    food,
-    calories,
-    protein,
-    carbs,
-    fats,
-    meal,
-    date: new Date().toISOString().split('T')[0],
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
-    loadNutritionList();
-    document.getElementById('foodItem').value = '';
-    document.getElementById('caloriesInput').value = '';
-    document.getElementById('proteinInput').value = '';
-    document.getElementById('carbsInput').value = '';
-    document.getElementById('fatsInput').value = '';
-  });
-}
-function loadNutritionList() {
-  const container = document.getElementById('nutritionList');
-  container.innerHTML = '<p>جارٍ التحميل...</p>';
-  const today = new Date().toISOString().split('T')[0];
-  db.collection('users').doc(currentUser.uid).collection('nutrition')
-  .get()
-  .then(snapshot => {
-    container.innerHTML = '<h4>اليوم:</h4>';
-    let hasData = false;
-    snapshot.forEach(doc => {
-      const n = doc.data();
-      if (n.date === today) {
-        hasData = true;
-        container.innerHTML += `<div style="padding: 8px; border-bottom: 1px solid #eee;">
-        <strong>${n.food}</strong> (${n.meal})<br>
-        ${n.calories} سعرة حرارية
-        </div>`;
-      }
-    });
-    if (!hasData) {
-      container.innerHTML += '<p>لم تُسجّل أي وجبات اليوم.</p>';
+      window.addEventListener('devicemotion', handleMotion);
+      updateGps();
+      setInterval(updateGps, 2000);
     }
-  });
-}
 
-// --- الملف الشخصي ---
-function saveProfile() {
-  const age = parseInt(document.getElementById('ageInput').value);
-  const weight = parseFloat(document.getElementById('weightInput').value);
-  const height = parseInt(document.getElementById('heightInput').value);
-  const goal = document.getElementById('goalInput').value;
-  const calorieGoal = parseInt(document.getElementById('calorieGoalInput').value) || 2000;
-  const stepGoal = parseInt(document.getElementById('stepGoalInput').value) || 10000;
+    function stopWorkout() {
+      workoutActive = false;
+      window.removeEventListener('devicemotion', handleMotion);
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
 
-  if (!age || !weight || !height) return alert('أكمل المعلومات');
-  db.collection('users').doc(currentUser.uid).set({
-    age, weight, height, goal, calorieGoal, stepGoal,
-    username: currentUser.displayName,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true })
-  .then(() => {
-    dailyCalorieGoal = calorieGoal;
-    dailyStepGoal = stepGoal;
-    alert('تم الحفظ');
-    loadDashboard();
-  });
-}
-function loadProfile() {
-  db.collection('users').doc(currentUser.uid).get().then(doc => {
-    if (doc.exists) {
-      const data = doc.data();
-      document.getElementById('ageInput').value = data.age || '';
-      document.getElementById('weightInput').value = data.weight || '';
-      document.getElementById('heightInput').value = data.height || '';
-      document.getElementById('goalInput').value = data.goal || 'maintain';
-      document.getElementById('calorieGoalInput').value = data.calorieGoal || 2000;
-      document.getElementById('stepGoalInput').value = data.stepGoal || 10000;
-      dailyCalorieGoal = data.calorieGoal || 2000;
-      dailyStepGoal = data.stepGoal || 10000;
-      document.getElementById('userInfo').innerText = `${translations[currentLang].appTitle} — ${data.username}`;
+      const finalDistanceKm = totalDistance / 1000;
+      const calories = Math.round(finalDistanceKm * settings.weight * 0.78);
+
+      db.collection('users').doc(currentUser.uid).collection('workouts').add({
+        type: 'walking',
+        distance: parseFloat(finalDistanceKm.toFixed(3)),
+        calories,
+        steps: stepCount,
+        date: new Date().toISOString().split('T')[0],
+        positions,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        gpsStatusEl.textContent = `⏹️ تم الحفظ: ${stepCount} خطوة | ${totalDistance >= 1000 ? (totalDistance/1000).toFixed(3) : totalDistance.toFixed(1)} ${settings.unit === 'mile' ? 'ميل' : 'كم'}`;
+        loadDashboard();
+      });
     }
-  });
-}
 
-// --- دوال لوحة التحكم ---
-function renderActivityCalendar() {
-  const container = document.getElementById('activityCalendar');
-  container.innerHTML = '';
-  const today = new Date();
-  const days = currentLang === 'ar' ? ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  days.forEach(day => {
-    const dayEl = document.createElement('div');
-    dayEl.className = 'calendar-day';
-    dayEl.innerText = day;
-    dayEl.style.fontWeight = 'bold';
-    dayEl.style.color = 'var(--primary)';
-    container.appendChild(dayEl);
-  });
-  for (let i = 0; i < 13; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (13 - i));
-    const dayEl = document.createElement('div');
-    dayEl.className = 'calendar-day inactive';
-    dayEl.innerText = date.getDate();
-    container.appendChild(dayEl);
-  }
-  const todayEl = document.createElement('div');
-  todayEl.className = 'calendar-day active';
-  todayEl.innerText = today.getDate();
-  container.appendChild(todayEl);
-}
+    // === لوحة التحكم ===
+    function loadDashboard() {
+      const today = new Date().toISOString().split('T')[0];
+      const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      db.collection('users').doc(currentUser.uid).collection('workouts')
+        .where('date', '>=', weekStart)
+        .get()
+        .then(snapshot => {
+          let weeklySteps = 0;
+          let weeklyDistance = 0;
+          let todaySteps = 0;
+          let todayDistance = 0;
+          
+          snapshot.forEach(doc => {
+            const w = doc.data();
+            weeklySteps += w.steps || 0;
+            weeklyDistance += w.distance || 0;
+            if (w.date === today) {
+              todaySteps += w.steps || 0;
+              todayDistance += w.distance || 0;
+            }
+          });
+          
+          // تحديث أهداف اليوم
+          updateStepProgress(todaySteps, settings.stepGoal);
+          updateDistanceProgress(todayDistance, settings.weeklyDistanceGoal / 7);
+          
+          // تحديث الرسوم البيانية
+          updateCharts(snapshot);
+        });
+    }
 
-function updateCalorieProgress(consumed, goal) {
-  const percent = Math.min(100, (consumed / goal) * 100);
-  document.getElementById('calorieProgressBar').style.width = `${percent}%`;
-  document.getElementById('calorieProgressText').innerText = `${consumed}/${goal}`;
-}
+    function updateStepProgress(steps, goal) {
+      const percent = Math.min(100, (steps / goal) * 100);
+      document.getElementById('stepProgressBar').style.width = `${percent}%`;
+      document.getElementById('stepProgressText').innerText = `${steps}/${goal}`;
+    }
 
-function updateStepProgress(steps, goal) {
-  const percent = Math.min(100, (steps / goal) * 100);
-  document.getElementById('stepProgressBar').style.width = `${percent}%`;
-  document.getElementById('stepProgressText').innerText = `${steps}/${goal}`;
-  
-  if (steps >= goal && goal > 0) {
-    document.getElementById('stepProgressBar').style.background = '#10b981';
-    showNotification(translations[currentLang].notificationStepGoal);
-  } else {
-    document.getElementById('stepProgressBar').style.background = 'var(--primary)';
-  }
-}
+    function updateDistanceProgress(distance, dailyGoal) {
+      const percent = Math.min(100, (distance / dailyGoal) * 100);
+      document.getElementById('distanceProgressBar').style.width = `${percent}%`;
+      document.getElementById('distanceProgressText').innerText = `${distance.toFixed(1)}/${dailyGoal} كم`;
+    }
 
-function loadDashboard() {
-  const today = new Date().toISOString().split('T')[0];
-  Promise.all([
-    db.collection('users').doc(currentUser.uid).collection('workouts').get(),
-    db.collection('users').doc(currentUser.uid).collection('nutrition').get(),
-    db.collection('users').doc(currentUser.uid).get()
-  ]).then(([workoutsSnap, nutritionSnap, userDoc]) => {
-    const userData = userDoc.data();
-    dailyCalorieGoal = userData?.calorieGoal || 2000;
-    dailyStepGoal = userData?.stepGoal || 10000;
-    
-    let burned = 0, consumed = 0, totalSteps = 0;
-    workoutsSnap.forEach(doc => {
-      const w = doc.data();
-      if (w.date === today) {
-        burned += w.calories || 0;
-        totalSteps += w.steps || 0;
+    function updateCharts(snapshot) {
+      const labels = [];
+      const stepsData = [];
+      const distanceData = [];
+      
+      // إنشاء تسميات للأيام السبعة الماضية
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        labels.push(d.toLocaleDateString('ar-EG', { weekday: 'short' }));
+        stepsData.push(0);
+        distanceData.push(0);
       }
-    });
-    nutritionSnap.forEach(doc => {
-      const n = doc.data();
-      if (n.date === today) consumed += n.calories || 0;
-    });
-    
-    document.getElementById('caloriesBurned').innerText = burned;
-    document.getElementById('caloriesConsumed').innerText = consumed;
-    document.getElementById('netCalories').innerText = (burned - consumed);
-    
-    updateCalorieProgress(consumed, dailyCalorieGoal);
-    updateStepProgress(totalSteps, dailyStepGoal);
-    renderActivityCalendar();
-  });
-}
+      
+      // ملء البيانات
+      snapshot.forEach(doc => {
+        const w = doc.data();
+        const date = new Date(w.date);
+        const daysAgo = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
+        if (daysAgo >= 0 && daysAgo <= 6) {
+          stepsData[6 - daysAgo] += w.steps || 0;
+          distanceData[6 - daysAgo] += w.distance || 0;
+        }
+      });
+      
+      // رسم رسم الخطوات
+      const ctx1 = document.getElementById('stepsChart').getContext('2d');
+      if (stepsChart) stepsChart.destroy();
+      stepsChart = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'الخطوات اليومية',
+            data: stepsData,
+            backgroundColor: 'rgba(67, 97, 238, 0.6)'
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+      
+      // رسم رسم المسافة
+      const ctx2 = document.getElementById('distanceChart').getContext('2d');
+      if (distanceChart) distanceChart.destroy();
+      distanceChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'المسافة اليومية (كم)',
+            data: distanceData,
+            borderColor: '#10b981',
+            tension: 0.4
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
 
-function startAutoSync() {
-  if (syncInterval) clearInterval(syncInterval);
-  syncInterval = setInterval(() => {
-    if (document.getElementById('dashboardTab').classList.contains('hidden')) return;
-    loadDashboard();
-  }, 30000);
-}
+    // === الإعدادات ===
+    function saveSettings() {
+      const displayName = document.getElementById('displayNameInput').value.trim() || currentUser.displayName;
+      const weight = parseFloat(document.getElementById('weightInput').value) || 75;
+      const stepLength = parseFloat(document.getElementById('stepLengthInput').value) || 0.75;
+      const unit = document.getElementById('unitPreference').value;
+      const stepGoal = parseInt(document.getElementById('stepGoalInput').value) || 10000;
+      const weeklyDistanceGoal = parseInt(document.getElementById('weeklyDistanceGoal').value) || 35;
+      
+      settings = { weight, stepLength, unit, stepGoal, weeklyDistanceGoal };
+      
+      db.collection('users').doc(currentUser.uid).set({
+        displayName,
+        weight,
+        stepLength,
+        unit,
+        stepGoal,
+        weeklyDistanceGoal,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true })
+      .then(() => {
+        alert('تم حفظ الإعدادات');
+        currentUser.updateProfile({ displayName });
+        loadDashboard();
+      });
+    }
 
-function exportData() { 
-  alert('تم التصدير'); 
-}
+    function loadSettings() {
+      db.collection('users').doc(currentUser.uid).get().then(doc => {
+        if (doc.exists) {
+          const data = doc.data();
+          settings.weight = data.weight || 75;
+          settings.stepLength = data.stepLength || 0.75;
+          settings.unit = data.unit || 'km';
+          settings.stepGoal = data.stepGoal || 10000;
+          settings.weeklyDistanceGoal = data.weeklyDistanceGoal || 35;
+          
+          document.getElementById('displayNameInput').value = data.displayName || '';
+          document.getElementById('weightInput').value = settings.weight;
+          document.getElementById('stepLengthInput').value = settings.stepLength;
+          document.getElementById('unitPreference').value = settings.unit;
+          document.getElementById('stepGoalInput').value = settings.stepGoal;
+          document.getElementById('weeklyDistanceGoal').value = settings.weeklyDistanceGoal;
+        }
+      });
+    }
 
-// --- تهيئة ---
-initTheme();
-updateUI();
-</script>
+    // === وظائف إضافية ===
+    function shareAchievement() {
+      const message = `لقد حققت ${stepCount} خطوة اليوم مع تطبيق FitTrack Pro! 💪`;
+      if (navigator.share) {
+        navigator.share({ text: message }).catch(console.error);
+      } else {
+        navigator.clipboard.writeText(message).then(() => {
+          alert('تم نسخ الإنجاز إلى الحافظة!');
+        });
+      }
+    }
+
+    function exportAllData() {
+      db.collection('users').doc(currentUser.uid).collection('workouts').get()
+        .then(snapshot => {
+          let csv = 'التاريخ,المسافة (كم),الخطوات,السعرات\n';
+          snapshot.forEach(doc => {
+            const w = doc.data();
+            csv += `${w.date},${w.distance},${w.steps},${w.calories}\n`;
+          });
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fittrack-data.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+    }
+
+    function toggleTheme() {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      themeToggle.innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+
+    // === التهيئة ===
+    function initApp() {
+      // تطبيق الوضع المحفوظ
+      const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.body.setAttribute('data-theme', savedTheme);
+      themeToggle.innerHTML = savedTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+      
+      // ربط الأحداث
+      startBtn.addEventListener('click', startWorkout);
+      stopBtn.addEventListener('click', stopWorkout);
+      themeToggle.addEventListener('click', toggleTheme);
+      
+      // تهيئة التنقل
+      document.querySelectorAll('.nav-icon').forEach(icon => {
+        icon.addEventListener('click', () => {
+          document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+          document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+          const tab = icon.getAttribute('data-tab');
+          document.getElementById(tab + 'Tab').classList.remove('hidden');
+          icon.classList.add('active');
+          
+          if (tab === 'dashboard' && currentUser) loadDashboard();
+          if (tab === 'profile' && currentUser) loadSettings();
+          if (tab === 'workouts') initMap();
+        });
+      });
+    }
+
+    // === Auth ===
+    function handleAuth(isSignup) {
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      if (!username || password.length < 6) return alert('كلمة المرور قصيرة (6 أحرف كحد أدنى)');
+      const email = `${username}@example.com`;
+      (isSignup ? auth.createUserWithEmailAndPassword(email, password) : auth.signInWithEmailAndPassword(email, password))
+        .then(async (userCredential) => {
+          if (isSignup) {
+            await userCredential.user.updateProfile({ displayName: username });
+            await db.collection('users').doc(userCredential.user.uid).set({ displayName: username });
+          }
+          currentUser = userCredential.user;
+          document.getElementById('preAuthSection').classList.add('hidden');
+          document.getElementById('topNav').classList.remove('hidden');
+          document.getElementById('appSection').classList.remove('hidden');
+          loadSettings();
+          document.querySelector('.nav-icon[data-tab="dashboard"]').click();
+        })
+        .catch(err => alert('خطأ: ' + err.message));
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        currentUser = null;
+        document.getElementById('preAuthSection').classList.remove('hidden');
+        document.getElementById('topNav').classList.add('hidden');
+        document.getElementById('appSection').classList.add('hidden');
+      });
+    }
+
+    // === بدء التطبيق ===
+    window.addEventListener('load', initApp);
+  </script>
 </body>
 </html>
