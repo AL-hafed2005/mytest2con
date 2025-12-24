@@ -268,6 +268,16 @@ margin-top: 15px;
 <div class="progress-fill" id="calorieProgressBar" style="width: 0%;"></div>
 </div>
 </div>
+<!-- هدف الخطوات اليومي -->
+<div style="margin: 20px 0;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+<span id="stepGoalLabel">الهدف اليومي من الخطوات</span>
+<span id="stepProgressText">0/10000</span>
+</div>
+<div class="progress-bar">
+<div class="progress-fill" id="stepProgressBar" style="width: 0%;"></div>
+</div>
+</div>
 <div class="stats-grid">
 <div class="stat-card">
 <div class="stat-value" id="caloriesBurned">0</div>
@@ -296,7 +306,7 @@ margin-top: 15px;
 </div>
 </div>
 
-<!-- ========== WORKOUTS TAB (النسخة المبسطة المطلوبة) ========== -->
+<!-- Workouts Tab -->
 <div id="workoutsTab" class="tab-content hidden">
   <div class="section">
     <h2 id="workoutsTitle">نظام التتبع الهجين</h2>
@@ -361,6 +371,8 @@ margin-top: 15px;
 </select>
 <label>السعرات اليومية المستهدفة</label>
 <input type="number" id="calorieGoalInput" min="1000" max="5000" placeholder="2000" />
+<label id="stepGoalLabel">الهدف اليومي من الخطوات</label>
+<input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
 <button onclick="saveProfile()">حفظ المعلومات</button>
 <div class="user-info" id="userInfo" style="margin: 15px 0; font-weight: 600;"></div>
 <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
@@ -419,9 +431,11 @@ gpsDenied: "❌ لم يتم منح إذن الموقع",
 gpsError: "⚠️ خطأ في GPS — التتبع غير متاح",
 stepTrackingReady: "🚶‍♂️ جاهز لعدّ الخطوات...",
 calorieGoalLabel: "الهدف اليومي من السعرات",
+stepGoalLabel: "الهدف اليومي من الخطوات",
 exportData: "تصدير البيانات (CSV)",
 notificationOver: "⚠️ تجاوزت سعراتك اليومية!",
 notificationInactive: "🏃‍♂️ لم تتمرن اليوم! لا تفوت يومك.",
+notificationStepGoal: "🎉 مبارك! حققت هدفك اليومي من الخطوات!",
 darkMode: "الوضع الليلي",
 lightMode: "الوضع النهاري"
 },
@@ -473,9 +487,11 @@ gpsDenied: "❌ Location permission denied",
 gpsError: "⚠️ GPS Error — Tracking unavailable",
 stepTrackingReady: "🚶‍♂️ Ready to count steps...",
 calorieGoalLabel: "Daily Calorie Goal",
+stepGoalLabel: "Daily Step Goal",
 exportData: "Export Data (CSV)",
 notificationOver: "⚠️ You exceeded your daily calories!",
 notificationInactive: "🏃‍♂️ You haven't worked out today! Don't miss your day.",
+notificationStepGoal: "🎉 Congratulations! You've reached your daily step goal!",
 darkMode: "Dark Mode",
 lightMode: "Light Mode"
 }
@@ -492,14 +508,9 @@ let lastStepTime = 0;
 let isGpsAvailable = false;
 let gpsTimeout = 0;
 let dailyCalorieGoal = 2000;
+let dailyStepGoal = 10000; // ⬅️ هدف الخطوات الافتراضي
 let weeklyChart = null;
 let syncInterval = null;
-
-// --- عتبات النظام الهجين ---
-const STEP_THRESHOLD = 1.7;
-const MIN_STEP_INTERVAL = 400; // ms
-const GPS_TIMEOUT_MS = 5000;   // 5 ثوانٍ
-const AVG_STEP_LENGTH = 0.75;  // متر
 
 // --- Firebase ---
 const firebaseConfig = {
@@ -514,12 +525,27 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// --- دوال دعم الوضع الليلي واللغة (موجودة أصلاً) ---
+// --- إشعارات ---
+function showNotification(message) {
+if (Notification.permission === "granted") {
+new Notification(message);
+} else if (Notification.permission !== "denied") {
+Notification.requestPermission().then(permission => {
+if (permission === "granted") {
+new Notification(message);
+}
+});
+}
+}
+
+// --- دعم الوضع الليلي ---
 function initTheme() {
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
 document.body.setAttribute('data-theme', 'dark');
 }
 }
+
+// --- وظائف اللغة ---
 function updateUI() {
 const t = translations[currentLang];
 document.querySelector('.app-title').innerText = t.appTitle;
@@ -534,6 +560,7 @@ document.getElementById('caloriesConsumedLabel').innerText = t.caloriesConsumed;
 document.getElementById('netCaloriesLabel').innerText = t.netCalories;
 document.getElementById('daysGoalMetLabel').innerText = t.daysGoalMet;
 document.getElementById('calorieGoalLabel').innerText = t.calorieGoalLabel;
+document.getElementById('stepGoalLabel').innerText = t.stepGoalLabel; // ⬅️
 document.querySelector('.export-btn').innerText = t.exportData;
 document.getElementById('workoutsTitle').innerText = t.workoutsTitle;
 document.getElementById('nutritionTitle').innerText = t.nutritionTitle;
@@ -565,7 +592,7 @@ goalSel.options[2].text = t.maintain;
 }
 }
 
-// --- التنقل بين التبويبات ---
+// --- التنقل ---
 function showTab(tabName) {
 document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
 document.querySelectorAll('.nav-icon').forEach(el => el.classList.remove('active'));
@@ -625,7 +652,7 @@ if (syncInterval) clearInterval(syncInterval);
 });
 }
 
-// === === النظام الهجين للتمارين (المطلوب) === ===
+// === === النظام الهجين للتمارين === ===
 const distanceEl = document.getElementById('distance');
 const stepsEl = document.getElementById('steps');
 const latEl = document.getElementById('lat');
@@ -634,6 +661,11 @@ const modeEl = document.getElementById('mode');
 const gpsStatusEl = document.getElementById('gpsStatus');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
+
+const STEP_THRESHOLD = 1.7;
+const MIN_STEP_INTERVAL = 400;
+const GPS_TIMEOUT_MS = 5000;
+const AVG_STEP_LENGTH = 0.75;
 
 function handleMotion(event) {
   if (!workoutActive) return;
@@ -696,8 +728,6 @@ function updateDistanceDisplay() {
   } else {
     distanceEl.textContent = totalDistance.toFixed(1) + ' م';
   }
-  // تحديث لوحة التحكم فورًا
-  document.getElementById('caloriesBurned').innerText = Math.round((totalDistance / 1000) * 60);
 }
 
 function startWorkout() {
@@ -744,27 +774,30 @@ function stopWorkout() {
   startBtn.disabled = false;
   stopBtn.disabled = true;
 
-  // حفظ البيانات في Firebase
   const finalDistanceKm = totalDistance / 1000;
-  const calories = Math.round(finalDistanceKm * 60);
-  db.collection('users').doc(currentUser.uid).collection('workouts').add({
-    type: 'walking',
-    distance: parseFloat(finalDistanceKm.toFixed(3)),
-    calories,
-    steps: stepCount,
-    date: new Date().toISOString().split('T')[0],
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
-    gpsStatusEl.textContent = `⏹️ تم الحفظ: ${stepCount} خطوة | ${totalDistance >= 1000 ? (totalDistance/1000).toFixed(3) : totalDistance.toFixed(1)} ${totalDistance >= 1000 ? 'كم' : 'م'}`;
-    loadDashboard();
+  // ✅ حساب السعرات باستخدام الوزن إذا متوفر
+  db.collection('users').doc(currentUser.uid).get().then(userDoc => {
+    const weight = userDoc.data()?.weight || 75;
+    const calories = Math.round(finalDistanceKm * weight * 0.78);
+
+    db.collection('users').doc(currentUser.uid).collection('workouts').add({
+      type: 'walking',
+      distance: parseFloat(finalDistanceKm.toFixed(3)),
+      calories,
+      steps: stepCount,
+      date: new Date().toISOString().split('T')[0],
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      gpsStatusEl.textContent = `⏹️ تم الحفظ: ${stepCount} خطوة | ${totalDistance >= 1000 ? (totalDistance/1000).toFixed(3) : totalDistance.toFixed(1)} ${totalDistance >= 1000 ? 'كم' : 'م'}`;
+      loadDashboard(); // ⬅️ تحديث لوحة التحكم (بما فيها شريط الخطوات)
+    });
   });
 }
 
-// ربط أزرار التمرين
 startBtn.addEventListener('click', startWorkout);
 stopBtn.addEventListener('click', stopWorkout);
 
-// --- باقي وظائف التغذية والملف الشخصي (كما هي) ---
+// --- التغذية ---
 function saveNutrition() {
   const food = document.getElementById('foodItem').value.trim();
   const calories = parseFloat(document.getElementById('caloriesInput').value) || 0;
@@ -815,20 +848,25 @@ function loadNutritionList() {
     }
   });
 }
+
+// --- الملف الشخصي ---
 function saveProfile() {
   const age = parseInt(document.getElementById('ageInput').value);
   const weight = parseFloat(document.getElementById('weightInput').value);
   const height = parseInt(document.getElementById('heightInput').value);
   const goal = document.getElementById('goalInput').value;
   const calorieGoal = parseInt(document.getElementById('calorieGoalInput').value) || 2000;
+  const stepGoal = parseInt(document.getElementById('stepGoalInput').value) || 10000; // ⬅️
+
   if (!age || !weight || !height) return alert('أكمل المعلومات');
   db.collection('users').doc(currentUser.uid).set({
-    age, weight, height, goal, calorieGoal,
+    age, weight, height, goal, calorieGoal, stepGoal, // ⬅️
     username: currentUser.displayName,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true })
   .then(() => {
     dailyCalorieGoal = calorieGoal;
+    dailyStepGoal = stepGoal; // ⬅️
     alert('تم الحفظ');
     loadDashboard();
   });
@@ -842,83 +880,6 @@ function loadProfile() {
       document.getElementById('heightInput').value = data.height || '';
       document.getElementById('goalInput').value = data.goal || 'maintain';
       document.getElementById('calorieGoalInput').value = data.calorieGoal || 2000;
+      document.getElementById('stepGoalInput').value = data.stepGoal || 10000; // ⬅️
       dailyCalorieGoal = data.calorieGoal || 2000;
-      document.getElementById('userInfo').innerText = `${translations[currentLang].appTitle} — ${data.username}`;
-    }
-  });
-}
-
-// --- دوال لوحة التحكم (مختصرة لدعم النظام الهجين) ---
-function renderActivityCalendar() {
-  const container = document.getElementById('activityCalendar');
-  container.innerHTML = '';
-  const today = new Date();
-  const days = currentLang === 'ar' ? ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  days.forEach(day => {
-    const dayEl = document.createElement('div');
-    dayEl.className = 'calendar-day';
-    dayEl.innerText = day;
-    dayEl.style.fontWeight = 'bold';
-    dayEl.style.color = 'var(--primary)';
-    container.appendChild(dayEl);
-  });
-  for (let i = 0; i < 13; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (13 - i));
-    const dayEl = document.createElement('div');
-    dayEl.className = 'calendar-day inactive';
-    dayEl.innerText = date.getDate();
-    container.appendChild(dayEl);
-  }
-  const todayEl = document.createElement('div');
-  todayEl.className = 'calendar-day active';
-  todayEl.innerText = today.getDate();
-  container.appendChild(todayEl);
-}
-function updateCalorieProgress(consumed, goal) {
-  const percent = Math.min(100, (consumed / goal) * 100);
-  document.getElementById('calorieProgressBar').style.width = `${percent}%`;
-  document.getElementById('calorieProgressText').innerText = `${consumed}/${goal}`;
-}
-function loadDashboard() {
-  const today = new Date().toISOString().split('T')[0];
-  Promise.all([
-    db.collection('users').doc(currentUser.uid).collection('workouts').get(),
-    db.collection('users').doc(currentUser.uid).collection('nutrition').get(),
-    db.collection('users').doc(currentUser.uid).get()
-  ]).then(([workoutsSnap, nutritionSnap, userDoc]) => {
-    const userData = userDoc.data();
-    dailyCalorieGoal = userData?.calorieGoal || 2000;
-    let burned = 0, consumed = 0;
-    workoutsSnap.forEach(doc => {
-      const w = doc.data();
-      if (w.date === today) burned += w.calories || 0;
-    });
-    nutritionSnap.forEach(doc => {
-      const n = doc.data();
-      if (n.date === today) consumed += n.calories || 0;
-    });
-    document.getElementById('caloriesBurned').innerText = burned;
-    document.getElementById('caloriesConsumed').innerText = consumed;
-    document.getElementById('netCalories').innerText = (burned - consumed);
-    updateCalorieProgress(consumed, dailyCalorieGoal);
-    renderActivityCalendar();
-    // تحديث عدادات النظام الهجين
-    document.getElementById('caloriesBurned').innerText = Math.round((totalDistance / 1000) * 60);
-  });
-}
-function startAutoSync() {
-  if (syncInterval) clearInterval(syncInterval);
-  syncInterval = setInterval(() => {
-    if (document.getElementById('dashboardTab').classList.contains('hidden')) return;
-    loadDashboard();
-  }, 30000);
-}
-function exportData() { alert('تم التصدير'); } // يمكن تحسينها لاحقًا
-
-// --- تهيئة ---
-initTheme();
-updateUI();
-</script>
-</body>
-</html>
+      dailyStep,
