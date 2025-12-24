@@ -2,159 +2,120 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>نظام قياس السرعة باستخدام GPS</title>
+<title>نظام تتبع السرعة والخطوات</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #0f172a;
-    color: #e5e7eb;
-    text-align: center;
-    padding: 20px;
+body{
+    font-family: Arial;
+    background:#020617;
+    color:#e5e7eb;
+    text-align:center;
+    padding:20px;
 }
-
-.container {
-    max-width: 400px;
-    margin: auto;
-    background: #020617;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 0 15px rgba(56,189,248,0.4);
+.container{
+    max-width:420px;
+    margin:auto;
+    background:#020617;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 0 20px rgba(56,189,248,.4);
 }
-
-h1 {
-    color: #38bdf8;
-    margin-bottom: 20px;
+h1{color:#38bdf8;}
+.box{margin:10px 0;font-size:18px}
+.value{color:#22c55e;font-weight:bold}
+button{
+    width:100%;padding:12px;margin-top:10px;
+    font-size:18px;border:none;border-radius:10px;cursor:pointer
 }
-
-.data {
-    margin: 10px 0;
-    font-size: 18px;
-}
-
-.value {
-    color: #22c55e;
-    font-weight: bold;
-}
-
-button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 15px;
-    font-size: 18px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.start {
-    background: #22c55e;
-    color: #022c22;
-}
-
-.stop {
-    background: #ef4444;
-    color: #fff;
-}
+.start{background:#22c55e;color:#022c22}
+.stop{background:#ef4444;color:#fff}
 </style>
 </head>
 
 <body>
-
 <div class="container">
-    <h1>قياس السرعة GPS</h1>
+<h1>نظام تتبع المشي والسرعة</h1>
 
-    <div class="data">خط العرض: <span id="lat" class="value">---</span></div>
-    <div class="data">خط الطول: <span id="lon" class="value">---</span></div>
+<div class="box">خط العرض: <span id="lat" class="value">--</span></div>
+<div class="box">خط الطول: <span id="lon" class="value">--</span></div>
+<div class="box">المسافة (متر): <span id="distance" class="value">0</span></div>
+<div class="box">الوقت (ثانية): <span id="time" class="value">0</span></div>
+<div class="box">السرعة (كم/س): <span id="speed" class="value">0</span></div>
+<div class="box">عدد الخطوات: <span id="steps" class="value">0</span></div>
 
-    <div class="data">المسافة (متر): <span id="distance" class="value">0</span></div>
-    <div class="data">الزمن (ثانية): <span id="time" class="value">0</span></div>
-    <div class="data">السرعة (كم/س): <span id="speed" class="value">0</span></div>
-
-    <button class="start" onclick="startTracking()">بدء التتبع</button>
-    <button class="stop" onclick="stopTracking()">إيقاف</button>
+<button class="start" onclick="startAll()">بدء التتبع</button>
+<button class="stop" onclick="stopAll()">إيقاف</button>
 </div>
 
 <script>
-let watchID = null;
-let startLat = null;
-let startLon = null;
-let startTime = null;
+let watchID=null, startTime=null;
+let lastLat=null, lastLon=null, totalDistance=0;
 
-function startTracking() {
-    if (!navigator.geolocation) {
-        alert("المتصفح لا يدعم GPS");
-        return;
-    }
+let steps=0, lastPeak=0;
 
-    startLat = null;
-    startLon = null;
-    startTime = Date.now();
+function startAll(){
+    startTime=Date.now();
+    steps=0; totalDistance=0; lastLat=null; lastLon=null;
 
-    watchID = navigator.geolocation.watchPosition(
-        position => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
+    // GPS
+    watchID=navigator.geolocation.watchPosition(pos=>{
+        const lat=pos.coords.latitude;
+        const lon=pos.coords.longitude;
 
-            document.getElementById("lat").textContent = lat.toFixed(6);
-            document.getElementById("lon").textContent = lon.toFixed(6);
+        document.getElementById("lat").textContent=lat.toFixed(6);
+        document.getElementById("lon").textContent=lon.toFixed(6);
 
-            if (startLat === null) {
-                startLat = lat;
-                startLon = lon;
-                return;
-            }
-
-            const distance = calculateDistance(
-                startLat, startLon, lat, lon
-            );
-
-            const timeSec = (Date.now() - startTime) / 1000;
-            const speed = (distance / timeSec) * 3.6; // كم/س
-
-            document.getElementById("distance").textContent = distance.toFixed(2);
-            document.getElementById("time").textContent = timeSec.toFixed(1);
-            document.getElementById("speed").textContent = speed.toFixed(2);
-        },
-        error => {
-            alert("حدث خطأ في تحديد الموقع");
-        },
-        {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 5000
+        if(lastLat){
+            totalDistance+=calcDistance(lastLat,lastLon,lat,lon);
         }
-    );
-}
 
-function stopTracking() {
-    if (watchID !== null) {
-        navigator.geolocation.clearWatch(watchID);
-        watchID = null;
+        lastLat=lat; lastLon=lon;
+
+        const timeSec=(Date.now()-startTime)/1000;
+        const speed=(totalDistance/timeSec)*3.6;
+
+        document.getElementById("distance").textContent=totalDistance.toFixed(2);
+        document.getElementById("time").textContent=timeSec.toFixed(1);
+        document.getElementById("speed").textContent=speed.toFixed(2);
+    },()=>alert("فشل تحديد الموقع"),{enableHighAccuracy:true});
+
+    // حساس الخطوات الحقيقي
+    if(typeof DeviceMotionEvent.requestPermission==="function"){
+        DeviceMotionEvent.requestPermission().then(res=>{
+            if(res==="granted") window.addEventListener("devicemotion", stepDetector);
+        });
+    }else{
+        window.addEventListener("devicemotion", stepDetector);
     }
 }
 
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000; // نصف قطر الأرض بالمتر
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+function stopAll(){
+    if(watchID) navigator.geolocation.clearWatch(watchID);
+    window.removeEventListener("devicemotion", stepDetector);
 }
 
-function toRad(value) {
-    return value * Math.PI / 180;
+function stepDetector(e){
+    const a=e.accelerationIncludingGravity;
+    const magnitude=Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+    const now=Date.now();
+
+    if(magnitude>12 && now-lastPeak>400){
+        steps++;
+        lastPeak=now;
+        document.getElementById("steps").textContent=steps;
+    }
 }
+
+function calcDistance(lat1,lon1,lat2,lon2){
+    const R=6371000;
+    const dLat=toRad(lat2-lat1);
+    const dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function toRad(x){return x*Math.PI/180}
 </script>
-
 </body>
 </html>
