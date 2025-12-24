@@ -306,7 +306,7 @@ margin-top: 15px;
 </div>
 </div>
 
-<!-- Workouts Tab -->
+<!-- ========== WORKOUTS TAB (النسخة المبسطة المطلوبة) ========== -->
 <div id="workoutsTab" class="tab-content hidden">
   <div class="section">
     <h2 id="workoutsTitle">نظام التتبع الهجين</h2>
@@ -371,7 +371,7 @@ margin-top: 15px;
 </select>
 <label>السعرات اليومية المستهدفة</label>
 <input type="number" id="calorieGoalInput" min="1000" max="5000" placeholder="2000" />
-<label id="stepGoalLabel">الهدف اليومي من الخطوات</label>
+<label id="stepGoalLabelProf">الهدف اليومي من الخطوات</label>
 <input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
 <button onclick="saveProfile()">حفظ المعلومات</button>
 <div class="user-info" id="userInfo" style="margin: 15px 0; font-weight: 600;"></div>
@@ -560,7 +560,7 @@ document.getElementById('caloriesConsumedLabel').innerText = t.caloriesConsumed;
 document.getElementById('netCaloriesLabel').innerText = t.netCalories;
 document.getElementById('daysGoalMetLabel').innerText = t.daysGoalMet;
 document.getElementById('calorieGoalLabel').innerText = t.calorieGoalLabel;
-document.getElementById('stepGoalLabel').innerText = t.stepGoalLabel; // ⬅️
+document.getElementById('stepGoalLabel').innerText = t.stepGoalLabel;
 document.querySelector('.export-btn').innerText = t.exportData;
 document.getElementById('workoutsTitle').innerText = t.workoutsTitle;
 document.getElementById('nutritionTitle').innerText = t.nutritionTitle;
@@ -583,6 +583,7 @@ document.getElementById('ageLabel').innerText = t.age;
 document.getElementById('weightLabel').innerText = t.weight;
 document.getElementById('heightLabel').innerText = t.height;
 document.getElementById('goalLabel').innerText = t.goal;
+document.getElementById('stepGoalLabelProf').innerText = t.stepGoalLabel;
 document.querySelector('button[onclick="saveProfile()"]').innerText = t.saveProfile;
 const goalSel = document.getElementById('goalInput');
 if (goalSel) {
@@ -728,6 +729,14 @@ function updateDistanceDisplay() {
   } else {
     distanceEl.textContent = totalDistance.toFixed(1) + ' م';
   }
+  // تحديث السعرات باستخدام الوزن إذا متوفر
+  db.collection('users').doc(currentUser.uid).get().then(doc => {
+    const weight = doc.exists ? (doc.data().weight || 75) : 75;
+    const calories = Math.round((totalDistance / 1000) * weight * 0.78);
+    document.getElementById('caloriesBurned').innerText = calories;
+  }).catch(() => {
+    document.getElementById('caloriesBurned').innerText = Math.round((totalDistance / 1000) * 60);
+  });
 }
 
 function startWorkout() {
@@ -775,7 +784,6 @@ function stopWorkout() {
   stopBtn.disabled = true;
 
   const finalDistanceKm = totalDistance / 1000;
-  // ✅ حساب السعرات باستخدام الوزن إذا متوفر
   db.collection('users').doc(currentUser.uid).get().then(userDoc => {
     const weight = userDoc.data()?.weight || 75;
     const calories = Math.round(finalDistanceKm * weight * 0.78);
@@ -789,7 +797,7 @@ function stopWorkout() {
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(() => {
       gpsStatusEl.textContent = `⏹️ تم الحفظ: ${stepCount} خطوة | ${totalDistance >= 1000 ? (totalDistance/1000).toFixed(3) : totalDistance.toFixed(1)} ${totalDistance >= 1000 ? 'كم' : 'م'}`;
-      loadDashboard(); // ⬅️ تحديث لوحة التحكم (بما فيها شريط الخطوات)
+      loadDashboard();
     });
   });
 }
@@ -856,17 +864,17 @@ function saveProfile() {
   const height = parseInt(document.getElementById('heightInput').value);
   const goal = document.getElementById('goalInput').value;
   const calorieGoal = parseInt(document.getElementById('calorieGoalInput').value) || 2000;
-  const stepGoal = parseInt(document.getElementById('stepGoalInput').value) || 10000; // ⬅️
+  const stepGoal = parseInt(document.getElementById('stepGoalInput').value) || 10000;
 
   if (!age || !weight || !height) return alert('أكمل المعلومات');
   db.collection('users').doc(currentUser.uid).set({
-    age, weight, height, goal, calorieGoal, stepGoal, // ⬅️
+    age, weight, height, goal, calorieGoal, stepGoal,
     username: currentUser.displayName,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true })
   .then(() => {
     dailyCalorieGoal = calorieGoal;
-    dailyStepGoal = stepGoal; // ⬅️
+    dailyStepGoal = stepGoal;
     alert('تم الحفظ');
     loadDashboard();
   });
@@ -880,6 +888,110 @@ function loadProfile() {
       document.getElementById('heightInput').value = data.height || '';
       document.getElementById('goalInput').value = data.goal || 'maintain';
       document.getElementById('calorieGoalInput').value = data.calorieGoal || 2000;
-      document.getElementById('stepGoalInput').value = data.stepGoal || 10000; // ⬅️
+      document.getElementById('stepGoalInput').value = data.stepGoal || 10000;
       dailyCalorieGoal = data.calorieGoal || 2000;
-      dailyStep,
+      dailyStepGoal = data.stepGoal || 10000;
+      document.getElementById('userInfo').innerText = `${translations[currentLang].appTitle} — ${data.username}`;
+    }
+  });
+}
+
+// --- دوال لوحة التحكم ---
+function renderActivityCalendar() {
+  const container = document.getElementById('activityCalendar');
+  container.innerHTML = '';
+  const today = new Date();
+  const days = currentLang === 'ar' ? ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  days.forEach(day => {
+    const dayEl = document.createElement('div');
+    dayEl.className = 'calendar-day';
+    dayEl.innerText = day;
+    dayEl.style.fontWeight = 'bold';
+    dayEl.style.color = 'var(--primary)';
+    container.appendChild(dayEl);
+  });
+  for (let i = 0; i < 13; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (13 - i));
+    const dayEl = document.createElement('div');
+    dayEl.className = 'calendar-day inactive';
+    dayEl.innerText = date.getDate();
+    container.appendChild(dayEl);
+  }
+  const todayEl = document.createElement('div');
+  todayEl.className = 'calendar-day active';
+  todayEl.innerText = today.getDate();
+  container.appendChild(todayEl);
+}
+
+function updateCalorieProgress(consumed, goal) {
+  const percent = Math.min(100, (consumed / goal) * 100);
+  document.getElementById('calorieProgressBar').style.width = `${percent}%`;
+  document.getElementById('calorieProgressText').innerText = `${consumed}/${goal}`;
+}
+
+function updateStepProgress(steps, goal) {
+  const percent = Math.min(100, (steps / goal) * 100);
+  document.getElementById('stepProgressBar').style.width = `${percent}%`;
+  document.getElementById('stepProgressText').innerText = `${steps}/${goal}`;
+  
+  if (steps >= goal && goal > 0) {
+    document.getElementById('stepProgressBar').style.background = '#10b981';
+    showNotification(translations[currentLang].notificationStepGoal);
+  } else {
+    document.getElementById('stepProgressBar').style.background = 'var(--primary)';
+  }
+}
+
+function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  Promise.all([
+    db.collection('users').doc(currentUser.uid).collection('workouts').get(),
+    db.collection('users').doc(currentUser.uid).collection('nutrition').get(),
+    db.collection('users').doc(currentUser.uid).get()
+  ]).then(([workoutsSnap, nutritionSnap, userDoc]) => {
+    const userData = userDoc.data();
+    dailyCalorieGoal = userData?.calorieGoal || 2000;
+    dailyStepGoal = userData?.stepGoal || 10000;
+    
+    let burned = 0, consumed = 0, totalSteps = 0;
+    workoutsSnap.forEach(doc => {
+      const w = doc.data();
+      if (w.date === today) {
+        burned += w.calories || 0;
+        totalSteps += w.steps || 0;
+      }
+    });
+    nutritionSnap.forEach(doc => {
+      const n = doc.data();
+      if (n.date === today) consumed += n.calories || 0;
+    });
+    
+    document.getElementById('caloriesBurned').innerText = burned;
+    document.getElementById('caloriesConsumed').innerText = consumed;
+    document.getElementById('netCalories').innerText = (burned - consumed);
+    
+    updateCalorieProgress(consumed, dailyCalorieGoal);
+    updateStepProgress(totalSteps, dailyStepGoal);
+    renderActivityCalendar();
+  });
+}
+
+function startAutoSync() {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(() => {
+    if (document.getElementById('dashboardTab').classList.contains('hidden')) return;
+    loadDashboard();
+  }, 30000);
+}
+
+function exportData() { 
+  alert('تم التصدير'); 
+}
+
+// --- تهيئة ---
+initTheme();
+updateUI();
+</script>
+</body>
+</html>
