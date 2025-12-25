@@ -33,6 +33,35 @@ direction: rtl;
 transition: background-color 0.3s, color 0.3s;
 }
 body.en { direction: ltr; text-align: left; }
+
+/* ========== Theme Toggle ========== */
+.theme-toggle {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background: var(--card);
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+[data-theme="dark"] .theme-toggle {
+  border-color: #475569;
+}
+.theme-toggle i {
+  font-size: 1.1rem;
+  color: var(--dark);
+}
+[data-theme="dark"] .theme-toggle i {
+  color: #f1f5f9;
+}
+
 /* ========== BEFORE LOGIN ========== */
 #preAuthSection {
 max-width: 400px;
@@ -42,6 +71,7 @@ background: var(--card);
 border-radius: 20px;
 box-shadow: 0 8px 24px rgba(0,0,0,0.1);
 text-align: center;
+position: relative;
 }
 .app-logo {
 font-size: 3.5rem;
@@ -85,6 +115,7 @@ font-size: 1rem;
 .signup-btn { background: var(--primary); color: white; }
 .login-btn { background: #6c757d; color: white; }
 .auth-btn:hover { opacity: 0.9; }
+
 /* ========== AFTER LOGIN ========== */
 .top-nav {
 position: fixed;
@@ -216,170 +247,178 @@ border-radius: 50%;
 background: #06d6a0;
 margin-top: 15px;
 }
+
+/* Responsive */
 @media (max-width: 600px) {
 .auth-buttons { flex-direction: column; }
 .nav-icons { gap: 20px; }
 .nav-icon { font-size: 1.25rem; }
 .stats-grid { grid-template-columns: 1fr; }
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  top: 12px;
+  left: 12px;
+}
 }
 </style>
 </head>
-<body class="ar">
+<body>
 <!-- ========== BEFORE LOGIN ========== -->
 <div id="preAuthSection">
-<div class="app-logo">
-<i class="fas fa-dumbbell"></i>
-</div>
-<h1 class="app-title">FitTrack Pro</h1>
-<div class="input-group" id="inputGroup">
-<input type="text" id="usernameInput" placeholder="اسم المستخدم" />
-<input type="password" id="passwordInput" placeholder="كلمة المرور" />
-</div>
-<div class="auth-buttons">
-<button class="auth-btn signup-btn" onclick="handleAuth(true)">إنشاء حساب</button>
-<button class="auth-btn login-btn" onclick="handleAuth(false)">تسجيل الدخول</button>
-</div>
-</div>
-<!-- ========== AFTER LOGIN ========== -->
-<nav id="topNav" class="top-nav hidden">
-<div class="nav-icons">
-<i class="nav-icon fas fa-home active" data-tab="dashboard"></i>
-<i class="nav-icon fas fa-running" data-tab="workouts"></i>
-<i class="nav-icon fas fa-utensils" data-tab="nutrition"></i>
-<i class="nav-icon fas fa-cog" data-tab="profile"></i>
-</div>
-<div class="logo-icon">
-<i class="fas fa-dumbbell"></i>
-</div>
-</nav>
-<div id="appSection" class="hidden">
-<div class="container">
-<!-- Dashboard Tab -->
-<div id="dashboardTab" class="tab-content">
-<div class="section">
-<h2 id="dashboardTitle">لوحة التحكم التحليلية</h2>
-<!-- هدف السعرات اليومي -->
-<div style="margin: 20px 0;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-<span id="calorieGoalLabel">الهدف اليومي من السعرات</span>
-<span id="calorieProgressText">0/2000</span>
-</div>
-<div class="progress-bar">
-<div class="progress-fill" id="calorieProgressBar" style="width: 0%;"></div>
-</div>
-</div>
-<!-- هدف الخطوات اليومي -->
-<div style="margin: 20px 0;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-<span id="stepGoalLabel">الهدف اليومي من الخطوات</span>
-<span id="stepProgressText">0/10000</span>
-</div>
-<div class="progress-bar">
-<div class="progress-fill" id="stepProgressBar" style="width: 0%;"></div>
-</div>
-</div>
-<div class="stats-grid">
-<div class="stat-card">
-<div class="stat-value" id="caloriesBurned">0</div>
-<div class="stat-label" id="caloriesBurnedLabel">السعرات المحروقة</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="caloriesConsumed">0</div>
-<div class="stat-label" id="caloriesConsumedLabel">السعرات المستهلكة</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="netCalories">0</div>
-<div class="stat-label" id="netCaloriesLabel">الرصيد (المحروقة - المستهلكة)</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="daysGoalMet">0/7</div>
-<div class="stat-label" id="daysGoalMetLabel">أيام تحقيق الهدف (أسبوعي)</div>
-</div>
-</div>
-<!-- تقويم النشاط -->
-<h3 style="margin: 20px 0;">تقويم النشاط (آخر 14 يومًا)</h3>
-<div class="calendar-grid" id="activityCalendar"></div>
-<h3 style="margin: 20px 0;">النشاط الأسبوعي</h3>
-<canvas id="weeklyChart"></canvas>
-<!-- زر التصدير -->
-<button class="export-btn" onclick="exportData()">تصدير البيانات (CSV)</button>
-</div>
-</div>
-
-<!-- ========== WORKOUTS TAB (النسخة المبسطة المطلوبة) ========== -->
-<div id="workoutsTab" class="tab-content hidden">
-  <div class="section">
-    <h2 id="workoutsTitle">نظام التتبع الهجين</h2>
-    
-    <div class="label">المسافة المقطوعة</div>
-    <div class="metric-value" id="distance" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0.00 م</div>
-
-    <div class="label">عدد الخطوات</div>
-    <div class="metric-value" id="steps" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0</div>
-
-    <div class="label">وضع النظام</div>
-    <div id="mode" class="gps-status">جاهز للبدء</div>
-
-    <div class="label">خط العرض</div>
-    <div class="coord" id="lat">—</div>
-
-    <div class="label">خط الطول</div>
-    <div class="coord" id="lng">—</div>
-
-    <div id="gpsStatus" class="gps-status">اضغط "ابدأ التتبع" لتفعيل النظام الهجين</div>
-
-    <button id="startBtn" class="btn" style="background: #10b981; color: white;">ابدأ التتبع</button>
-    <button id="stopBtn" class="btn" style="background: #ef4444; color: white;" disabled>إيقاف</button>
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <i class="fas fa-moon"></i>
+  </div>
+  <div class="app-logo">
+    <i class="fas fa-dumbbell"></i>
+  </div>
+  <h1 class="app-title">FitTrack Pro</h1>
+  <div class="input-group" id="inputGroup">
+    <input type="text" id="usernameInput" placeholder="اسم المستخدم" />
+    <input type="password" id="passwordInput" placeholder="كلمة المرور" />
+  </div>
+  <div class="auth-buttons">
+    <button class="auth-btn signup-btn" onclick="handleAuth(true)">إنشاء حساب</button>
+    <button class="auth-btn login-btn" onclick="handleAuth(false)">تسجيل الدخول</button>
   </div>
 </div>
 
-<!-- Nutrition Tab -->
-<div id="nutritionTab" class="tab-content hidden">
-<div class="section">
-<h2 id="nutritionTitle">تسجيل التغذية</h2>
-<label id="mealLabel">الوجبة</label>
-<select id="mealType">
-<option value="breakfast">فطور</option>
-<option value="lunch">غداء</option>
-<option value="dinner">عشاء</option>
-<option value="snack">وجبة خفيفة</option>
-</select>
-<input type="text" id="foodItem" placeholder="اسم الطعام" />
-<input type="number" id="caloriesInput" placeholder="السعرات الحرارية" min="0" />
-<input type="number" id="proteinInput" placeholder="البروتين (غ)" min="0" step="0.1" />
-<input type="number" id="carbsInput" placeholder="الكربوهيدرات (غ)" min="0" step="0.1" />
-<input type="number" id="fatsInput" placeholder="الدهون (غ)" min="0" step="0.1" />
-<button onclick="saveNutrition()">حفظ الوجبة</button>
-<div id="nutritionList" style="margin-top: 20px;"></div>
+<!-- ========== AFTER LOGIN ========== -->
+<nav id="topNav" class="top-nav hidden">
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <i class="fas fa-moon"></i>
+  </div>
+  <div class="nav-icons">
+    <i class="nav-icon fas fa-home active" data-tab="dashboard"></i>
+    <i class="nav-icon fas fa-running" data-tab="workouts"></i>
+    <i class="nav-icon fas fa-utensils" data-tab="nutrition"></i>
+    <i class="nav-icon fas fa-cog" data-tab="profile"></i>
+  </div>
+  <div class="logo-icon">
+    <i class="fas fa-dumbbell"></i>
+  </div>
+</nav>
+
+<!-- ... باقي المحتوى (Tabs) لم يتغير ... -->
+<div id="appSection" class="hidden">
+  <!-- Dashboard Tab -->
+  <div id="dashboardTab" class="tab-content">
+    <div class="section">
+      <h2 id="dashboardTitle">لوحة التحكم التحليلية</h2>
+      <!-- هدف السعرات اليومي -->
+      <div style="margin: 20px 0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <span id="calorieGoalLabel">الهدف اليومي من السعرات</span>
+          <span id="calorieProgressText">0/2000</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="calorieProgressBar" style="width: 0%;"></div>
+        </div>
+      </div>
+      <!-- هدف الخطوات اليومي -->
+      <div style="margin: 20px 0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <span id="stepGoalLabel">الهدف اليومي من الخطوات</span>
+          <span id="stepProgressText">0/10000</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="stepProgressBar" style="width: 0%;"></div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="caloriesBurned">0</div>
+          <div class="stat-label" id="caloriesBurnedLabel">السعرات المحروقة</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="caloriesConsumed">0</div>
+          <div class="stat-label" id="caloriesConsumedLabel">السعرات المستهلكة</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="netCalories">0</div>
+          <div class="stat-label" id="netCaloriesLabel">الرصيد (المحروقة - المستهلكة)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="daysGoalMet">0/7</div>
+          <div class="stat-label" id="daysGoalMetLabel">أيام تحقيق الهدف (أسبوعي)</div>
+        </div>
+      </div>
+      <h3 style="margin: 20px 0;">تقويم النشاط (آخر 14 يومًا)</h3>
+      <div class="calendar-grid" id="activityCalendar"></div>
+      <h3 style="margin: 20px 0;">النشاط الأسبوعي</h3>
+      <canvas id="weeklyChart"></canvas>
+      <button class="export-btn" onclick="exportData()">تصدير البيانات (CSV)</button>
+    </div>
+  </div>
+
+  <!-- Workouts Tab -->
+  <div id="workoutsTab" class="tab-content hidden">
+    <div class="section">
+      <h2 id="workoutsTitle">نظام التتبع الهجين</h2>
+      <div class="label">المسافة المقطوعة</div>
+      <div class="metric-value" id="distance" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0.00 م</div>
+      <div class="label">عدد الخطوات</div>
+      <div class="metric-value" id="steps" style="font-size: 28px; font-weight: bold; color: var(--primary); margin: 10px 0;">0</div>
+      <div class="label">وضع النظام</div>
+      <div id="mode" class="gps-status">جاهز للبدء</div>
+      <div class="label">خط العرض</div>
+      <div class="coord" id="lat">—</div>
+      <div class="label">خط الطول</div>
+      <div class="coord" id="lng">—</div>
+      <div id="gpsStatus" class="gps-status">اضغط "ابدأ التتبع" لتفعيل النظام الهجين</div>
+      <button id="startBtn" class="btn" style="background: #10b981; color: white;">ابدأ التتبع</button>
+      <button id="stopBtn" class="btn" style="background: #ef4444; color: white;" disabled>إيقاف</button>
+    </div>
+  </div>
+
+  <!-- Nutrition Tab -->
+  <div id="nutritionTab" class="tab-content hidden">
+    <div class="section">
+      <h2 id="nutritionTitle">تسجيل التغذية</h2>
+      <label id="mealLabel">الوجبة</label>
+      <select id="mealType">
+        <option value="breakfast">فطور</option>
+        <option value="lunch">غداء</option>
+        <option value="dinner">عشاء</option>
+        <option value="snack">وجبة خفيفة</option>
+      </select>
+      <input type="text" id="foodItem" placeholder="اسم الطعام" />
+      <input type="number" id="caloriesInput" placeholder="السعرات الحرارية" min="0" />
+      <input type="number" id="proteinInput" placeholder="البروتين (غ)" min="0" step="0.1" />
+      <input type="number" id="carbsInput" placeholder="الكربوهيدرات (غ)" min="0" step="0.1" />
+      <input type="number" id="fatsInput" placeholder="الدهون (غ)" min="0" step="0.1" />
+      <button onclick="saveNutrition()">حفظ الوجبة</button>
+      <div id="nutritionList" style="margin-top: 20px;"></div>
+    </div>
+  </div>
+
+  <!-- Profile Tab -->
+  <div id="profileTab" class="tab-content hidden">
+    <div class="section">
+      <h2 id="profileTitle">المعلومات الشخصية</h2>
+      <label id="ageLabel">العمر</label>
+      <input type="number" id="ageInput" min="10" max="100" />
+      <label id="weightLabel">الوزن (كغ)</label>
+      <input type="number" id="weightInput" min="30" max="200" step="0.1" />
+      <label id="heightLabel">الطول (سم)</label>
+      <input type="number" id="heightInput" min="100" max="250" />
+      <label id="goalLabel">الهدف</label>
+      <select id="goalInput">
+        <option value="lose">إنقاص الوزن</option>
+        <option value="gain">زيادة العضلات</option>
+        <option value="maintain">الحفاظ على الوزن</option>
+      </select>
+      <label>السعرات اليومية المستهدفة</label>
+      <input type="number" id="calorieGoalInput" min="1000" max="5000" placeholder="2000" />
+      <label id="stepGoalLabelProf">الهدف اليومي من الخطوات</label>
+      <input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
+      <button onclick="saveProfile()">حفظ المعلومات</button>
+      <div class="user-info" id="userInfo" style="margin: 15px 0; font-weight: 600;"></div>
+      <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
+    </div>
+  </div>
 </div>
-</div>
-<!-- Profile Tab -->
-<div id="profileTab" class="tab-content hidden">
-<div class="section">
-<h2 id="profileTitle">المعلومات الشخصية</h2>
-<label id="ageLabel">العمر</label>
-<input type="number" id="ageInput" min="10" max="100" />
-<label id="weightLabel">الوزن (كغ)</label>
-<input type="number" id="weightInput" min="30" max="200" step="0.1" />
-<label id="heightLabel">الطول (سم)</label>
-<input type="number" id="heightInput" min="100" max="250" />
-<label id="goalLabel">الهدف</label>
-<select id="goalInput">
-<option value="lose">إنقاص الوزن</option>
-<option value="gain">زيادة العضلات</option>
-<option value="maintain">الحفاظ على الوزن</option>
-</select>
-<label>السعرات اليومية المستهدفة</label>
-<input type="number" id="calorieGoalInput" min="1000" max="5000" placeholder="2000" />
-<label id="stepGoalLabelProf">الهدف اليومي من الخطوات</label>
-<input type="number" id="stepGoalInput" min="1000" max="50000" placeholder="10000" />
-<button onclick="saveProfile()">حفظ المعلومات</button>
-<div class="user-info" id="userInfo" style="margin: 15px 0; font-weight: 600;"></div>
-<button class="logout-btn" onclick="logout()">تسجيل خروج</button>
-</div>
-</div>
-</div>
-</div>
+
 <script>
 // --- الترجمات ---
 const translations = {
@@ -508,7 +547,7 @@ let lastStepTime = 0;
 let isGpsAvailable = false;
 let gpsTimeout = 0;
 let dailyCalorieGoal = 2000;
-let dailyStepGoal = 10000; // ⬅️ هدف الخطوات الافتراضي
+let dailyStepGoal = 10000;
 let weeklyChart = null;
 let syncInterval = null;
 
@@ -525,6 +564,39 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// --- Theme Management ---
+function getCurrentTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark' || saved === 'light') return saved;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+}
+
+function applyTheme(theme) {
+  document.body.setAttribute('data-theme', theme);
+  const icons = document.querySelectorAll('.theme-toggle i');
+  icons.forEach(icon => {
+    icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  });
+  localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+  const current = document.body.getAttribute('data-theme') || getCurrentTheme();
+  const newTheme = current === 'dark' ? 'light' : 'dark';
+  applyTheme(newTheme);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const theme = getCurrentTheme();
+  applyTheme(theme);
+});
+
+// --- باقي الكود (Auth, UI, GPS, etc.) ---
+// ... (الباقي من الكود كما هو دون تغيير، بما في ذلك handleAuth، showTab، startWorkout، saveNutrition، loadDashboard، إلخ)
+
 // --- إشعارات ---
 function showNotification(message) {
 if (Notification.permission === "granted") {
@@ -535,13 +607,6 @@ if (permission === "granted") {
 new Notification(message);
 }
 });
-}
-}
-
-// --- دعم الوضع الليلي ---
-function initTheme() {
-if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-document.body.setAttribute('data-theme', 'dark');
 }
 }
 
@@ -729,7 +794,6 @@ function updateDistanceDisplay() {
   } else {
     distanceEl.textContent = totalDistance.toFixed(1) + ' م';
   }
-  // تحديث السعرات باستخدام الوزن إذا متوفر
   db.collection('users').doc(currentUser.uid).get().then(doc => {
     const weight = doc.exists ? (doc.data().weight || 75) : 75;
     const calories = Math.round((totalDistance / 1000) * weight * 0.78);
@@ -989,8 +1053,7 @@ function exportData() {
   alert('تم التصدير'); 
 }
 
-// --- تهيئة ---
-initTheme();
+// --- تهيئة اللغة ---
 updateUI();
 </script>
 </body>
